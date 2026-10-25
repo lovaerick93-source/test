@@ -1,0 +1,41 @@
+[versions]
+agp = "9.4.1"
+kotlin = "2.4.21"
+coroutines = "1.11.0"
+serialization = "1.12.0"
+# OkHttp 4.12.0 rather than 5.x on purpose: okhttp-android 5.x demands
+# compileSdk 37, while 4.12.0 ships its Android platform support inside the
+# core artifact and runs on the stable android-36 SDK this project targets.
+# The APIs used here (WebSocket, WebSocketListener, pingInterval) are identical
+# in both lines.
+okhttp = "4.12.0"
+javacv = "1.5.14"
+coreKtx = "1.19.1"
+appcompat = "1.8.0"
+material = "1.14.0"
+lifecycle = "2.11.0"
+
+[libraries]
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version.ref = "lifecycle" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+# FFmpeg only for the host platform: the "-platform" artifact would also drag in
+# ~1 GB of macOS/Linux/ARM natives we can never load on this machine.
+# NOTE: a version catalog entry cannot carry a "classifier" key. When the desktop
+# viewer needs FFmpeg, declare it inline in desktop-controller/build.gradle.kts with
+# the classifier, e.g.
+#   implementation(variantOf(libs.javacv) { classifier("windows-x86_64") })
+javacv = { module = "org.bytedeco:javacv", version.ref = "javacv" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# No kotlin-android entry: AGP 9 has built-in Kotlin, and applying the old
+# org.jetbrains.kotlin.android plugin is now a build error.
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

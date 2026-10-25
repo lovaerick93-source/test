@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Remote Control Agent</string>
+
+    <string name="accessibility_label">Remote Control Agent input</string>
+    <string name="accessibility_description">Lets a paired desktop you have approved tap, swipe and type on this screen. Turn this off at any time to stop all remote input immediately.</string>
+
+    <string name="notification_channel_name">Remote session</string>
+    <string name="notification_channel_description">Shows while the agent is reachable by a paired desktop.</string>
+    <string name="notification_title">Remote Control Agent is running</string>
+    <string name="notification_text_offline">Connecting to hub…</string>
+    <string name="notification_text_online">Online — pairing code %1$s</string>
+    <string name="notification_text_paired">Desktop connected and in control</string>
+    <string name="notification_text_mirroring">Mirroring this screen to a paired desktop</string>
+
+    <string name="action_stop">Stop</string>
+
+    <string name="capture_prompt_toast">A paired desktop asked to see this screen. Approve the capture below.</string>
+    <string name="capture_dialog_unavailable">Could not open the screen-capture dialog on this device.</string>
+
+    <string name="consent_channel_name">Control requests</string>
+    <string name="consent_channel_description">Asks you before a desktop is allowed to control this phone.</string>
+    <string name="consent_title">Control request</string>
+    <string name="consent_message">A desktop (%1$s) wants to control this phone.\n\nAccepting lets it see your screen, tap and type until you stop the agent.</string>
+    <string name="consent_notification_text">A desktop wants to control this phone. Tap Accept to allow, or Decline to refuse.</string>
+    <string name="consent_accept">Accept</string>
+    <string name="consent_decline">Decline</string>
+</resources>

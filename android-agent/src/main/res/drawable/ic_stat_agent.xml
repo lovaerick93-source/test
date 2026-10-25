@@ -1,0 +1,16 @@
+<!-- Notification small icon. Status-bar icons are drawn as a single-colour
+     silhouette, so this is deliberately white-on-nothing with no gradients. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Screen outline: the inner rectangle winds the other way, which punches
+         the hole in the middle so it reads as a display rather than a slab. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M3,5 L21,5 L21,16 L3,16 Z M6,8 L6,13 L18,13 L18,8 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M8,17 L16,17 L16,19 L8,19 Z M2,20 L22,20 L22,21.5 L2,21.5 Z" />
+</vector>

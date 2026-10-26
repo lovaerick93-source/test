@@ -13,12 +13,15 @@ import logging
 import secrets
 import time
 import os
+from datetime import datetime, timezone
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from supabase import create_client, Client
-
 from fastapi import WebSocket
+
+import aiofiles
 
 from models import DeviceInfo, Msg
 
@@ -74,7 +77,14 @@ class Connection:
 
 
 class Hub:
-    """Tracks every connected agent and controller, and pairs them up."""
+    """Tracks every connected agent and controller, and pairs them up.
+
+    """
+
+    # Server-side file storage directory
+    # NOTE: This directory must be created on disk before serving files.
+    # The .gitignore already excludes 'server/files/'.
+    FILES_DIR = Path(__file__).parent / "files"
 
     def __init__(self) -> None:
         self._by_conn_id: Dict[str, Connection] = {}
@@ -87,9 +97,15 @@ class Hub:
         # Offline devices loaded from database: device_id -> DeviceInfo
         self._db_devices: Dict[str, DeviceInfo] = {}
 
-        # Supabase client
+        # Ensure the files directory exists
+        try:
+            self.FILES_DIR.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            log.debug("could not create FILES_DIR %s", self.FILES_DIR)
+
+        # Supabase client - prefer service role key, fall back to anon key
         url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_KEY")
+        key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
         if url and key:
             self.supabase: Optional[Client] = create_client(url, key)
             self._load_from_db()
@@ -109,13 +125,13 @@ class Hub:
                     continue
                 info = DeviceInfo(
                     device_id=device_id,
-                    name=row.get("name"),
-                    model=row.get("model"),
-                    manufacturer=row.get("manufacturer"),
-                    android_version=row.get("android_version"),
-                    sdk_int=row.get("sdk_int"),
-                    screen_width=row.get("screen_width"),
-                    screen_height=row.get("screen_height"),
+                    name=row.get("name") or "unknown",
+                    model=row.get("model") or "unknown",
+                    manufacturer=row.get("manufacturer") or "unknown",
+                    android_version=row.get("android_version") or "unknown",
+                    sdk_int=row.get("sdk_int") or 0,
+                    screen_width=row.get("screen_width") or 0,
+                    screen_height=row.get("screen_height") or 0,
                     battery_percent=row.get("battery_percent", -1),
                     can_capture=row.get("can_capture", False),
                     can_inject_input=row.get("can_inject_input", False),
@@ -151,11 +167,14 @@ class Hub:
             "pairing_code": conn.pairing_code,
             "auto_approve": conn.auto_approve,
             "last_ip": conn.ws.client.host if conn.ws.client else None,
-            "last_seen": "now()",
+            "last_seen": datetime.now(timezone.utc).isoformat(),
         }
         try:
-            # Upsert by primary key (device_id)
-            self.supabase.table("devices").upsert(data).execute()
+            # Upsert by primary key (device_id) — run in a thread so the sync
+            # Supabase client cannot block the event loop.
+            await asyncio.to_thread(
+                lambda: self.supabase.table("devices").upsert(data).execute()
+            )
         except Exception as e:
             log.error("failed to upsert device %s in Supabase: %s", conn.device_id, e)
 
@@ -164,8 +183,13 @@ class Hub:
         if not self.supabase:
             return
         try:
-            # Delete old apps first
-            self.supabase.table("device_apps").delete().eq("device_id", device_id).execute()
+            # Delete old apps first — run in a thread to avoid blocking.
+            await asyncio.to_thread(
+                lambda: self.supabase.table("device_apps")
+                .delete()
+                .eq("device_id", device_id)
+                .execute()
+            )
             
             # Insert new ones in batches
             if not apps:
@@ -180,7 +204,9 @@ class Hub:
                 }
                 for a in apps
             ]
-            self.supabase.table("device_apps").insert(data).execute()
+            await asyncio.to_thread(
+                lambda: self.supabase.table("device_apps").insert(data).execute()
+            )
             log.info("saved %d apps for device %s to database", len(apps), device_id)
         except Exception as e:
             log.error("failed to save apps for device %s in Supabase: %s", device_id, e)
@@ -195,7 +221,7 @@ class Hub:
         auto_approve: bool,
     ) -> str:
         """Register a phone. Returns the pairing code it should display."""
-        code = self._claim_code(requested_code)
+        code = self._claim_code(requested_code, info.device_id)
         conn.role = "agent"
         conn.label = info.name or info.model or info.device_id
         conn.device_id = info.device_id
@@ -219,9 +245,13 @@ class Hub:
         await self.broadcast_device_list()
         return code
 
-    def _claim_code(self, requested: Optional[str]) -> str:
-        """Honour the phone's code if it is free and well formed, else mint one."""
-        if requested and len(requested) == 6 and requested.isdigit() and requested not in self._codes:
+    def _claim_code(self, requested: Optional[str], device_id: Optional[str] = None) -> str:
+        """Honour the phone's code if it is free and well formed, else mint one.
+
+        A previously-used code is still valid for the same device_id (after a
+        restart or reconnect), so codes remain stable across sessions.
+        """
+        if requested and len(requested) == 6 and requested.isdigit() and self._codes.get(requested) in (None, device_id):
             return requested
         while True:
             code = f"{secrets.randbelow(1_000_000):06d}"
@@ -240,6 +270,13 @@ class Hub:
         await controller.send(Msg.DEVICE_LIST, devices=self.device_views())
 
     async def update_device_info(self, conn: Connection, info: DeviceInfo) -> None:
+        """Update device info. Only agents may update, and device_id must match."""
+        if conn.role != "agent":
+            await conn.send(Msg.ERROR, reason="agents_only")
+            return
+        if conn.device_id and info.device_id != conn.device_id:
+            await conn.send(Msg.ERROR, reason="device_id_mismatch")
+            return
         conn.info = info
         await self._upsert_device_in_db(conn)
         await self.broadcast_device_list()
@@ -250,6 +287,7 @@ class Hub:
         await self._teardown(conn, "client disconnected")
 
     async def _teardown(self, conn: Connection, reason: str, announce: bool = True) -> None:
+        pending_controller_conn_id: Optional[str] = None
         async with self._lock:
             self._by_conn_id.pop(conn.conn_id, None)
 
@@ -260,9 +298,7 @@ class Hub:
                     del self._agents[conn.device_id]
                 if conn.pairing_code:
                     self._codes.pop(conn.pairing_code, None)
-                if self._pending.get(conn.device_id) == conn.conn_id:
-                    self._pending.pop(conn.device_id, None)
-                    conn.state = "idle"
+                pending_controller_conn_id = self._pending.pop(conn.device_id, None)
 
             if conn.role == "controller":
                 self._controllers.pop(conn.conn_id, None)
@@ -273,6 +309,13 @@ class Hub:
             peer = self._by_conn_id.get(conn.peer_conn_id) if conn.peer_conn_id else None
             conn.peer_conn_id = None
             conn.state = "idle"
+
+        # Notify any controller that was waiting for this agent's approval.
+        if pending_controller_conn_id:
+            controller = self._by_conn_id.get(pending_controller_conn_id)
+            if controller:
+                controller.state = "idle"
+                await controller.send(Msg.ERROR, reason="device_unavailable", device_id=conn.device_id)
 
         if peer is not None:
             peer.peer_conn_id = None
@@ -296,6 +339,9 @@ class Hub:
             await controller.send(Msg.ERROR, reason="bad_pairing_code", device_id=device_id)
             return
         if agent.peer_conn_id is not None:
+            await controller.send(Msg.ERROR, reason="device_busy", device_id=device_id)
+            return
+        if agent.state == "awaiting_approval":
             await controller.send(Msg.ERROR, reason="device_busy", device_id=device_id)
             return
 
@@ -363,8 +409,37 @@ class Hub:
     # ----------------------------------------------------------------- routing
 
     async def relay(self, sender: Connection, msg_type: str, payload: Dict[str, Any]) -> None:
-        """Forward an opaque control frame to the sender's paired peer."""
-        
+        """Forward an opaque control frame to the sender's paired peer.
+
+        Security rules:
+        * Hub-local types (HELLO, PING, CONNECT_*, DISCONNECT, DEVICE_INFO) are
+          never relayed.
+        * Controllers may only send ctl.* messages; agents may only send evt.*
+          messages. Anything else is rejected.
+        """
+
+        # Block hub-local types from being relayed to peers.
+        if msg_type in Msg.HUB_LOCAL:
+            await sender.send(Msg.ERROR, reason="not_relayable", original_type=msg_type)
+            return
+
+        # Enforce direction: controllers send ctl.*, agents send evt.*
+        if sender.role == "controller" and not msg_type.startswith(Msg.CTL_PREFIX):
+            await sender.send(Msg.ERROR, reason="invalid_direction", original_type=msg_type)
+            return
+        if sender.role == "agent" and not msg_type.startswith(Msg.EVT_PREFIX):
+            await sender.send(Msg.ERROR, reason="invalid_direction", original_type=msg_type)
+            return
+
+        # Intercept file push/pull for server-side storage
+        if msg_type == Msg.CTL_FILE_PUSH and sender.role == "controller":
+            await self._handle_file_push(sender, payload)
+            return
+
+        if msg_type == Msg.CTL_FILE_PULL and sender.role == "controller":
+            await self._handle_file_pull(sender, payload)
+            return
+
         # Intercept app list events to store them in the database
         if msg_type == Msg.EVT_APPS and sender.role == "agent" and sender.device_id:
             apps = payload.get("apps")
@@ -392,6 +467,97 @@ class Hub:
         if not await peer.send_bytes(data):
             await self._teardown(peer, "peer socket failed while relaying a frame")
             await sender.send(Msg.PEER_DISCONNECTED, reason="peer_unreachable")
+
+    async def _handle_file_push(self, sender: Connection, payload: Dict[str, Any]) -> None:
+        """Stream a file from server files/ dir to the paired phone in chunks.
+
+        Before sending raw binary chunks, a JSON "start" envelope is relayed to
+        the peer so it can distinguish file data from video frames. A "done"
+        envelope is sent after the last chunk.
+        """
+        peer = self.peer_of(sender)
+        if peer is None:
+            await sender.send(Msg.ERROR, reason="not_paired", original_type=Msg.CTL_FILE_PUSH)
+            return
+        try:
+            filename = payload.get("filename", "unknown")
+            file_id = payload.get("file_id", "file")
+            file_size = payload.get("file_size", 0)
+
+            # Path traversal protection: strip any directory components, then
+            # verify the resolved path stays inside FILES_DIR.
+            safe_name = Path(filename).name
+            filepath = self.FILES_DIR / safe_name
+            try:
+                resolved = filepath.resolve()
+                files_dir_resolved = self.FILES_DIR.resolve()
+                prefix = str(files_dir_resolved) + os.sep
+                if not (str(resolved).startswith(prefix) or resolved == files_dir_resolved):
+                    await sender.send(Msg.ERROR, reason="invalid_filename", file=filename)
+                    return
+            except Exception:
+                await sender.send(Msg.ERROR, reason="invalid_filename", file=filename)
+                return
+
+            if not resolved.exists():
+                await sender.send(Msg.ERROR, reason="file_not_found", file=filename)
+                return
+
+            # Tell the phone a file transfer is starting so it can tell these
+            # binary chunks apart from video frames.
+            await peer.relay_envelope(
+                Msg.CTL_FILE_PUSH,
+                {
+                    "file_id": file_id,
+                    "filename": safe_name,
+                    "file_size": file_size,
+                    "action": "start",
+                },
+            )
+
+            chunk_size = 64 * 1024
+            bytes_sent = 0
+            async with aiofiles.open(resolved, "rb") as f:
+                while True:
+                    chunk = await f.read(chunk_size)
+                    if not chunk:
+                        break
+                    await peer.send_bytes(chunk)
+                    bytes_sent += len(chunk)
+                    progress = (bytes_sent / file_size * 100) if file_size > 0 else 100
+                    await sender.send(Msg.EVT_FILE_PROGRESS, file_id=file_id, filename=safe_name, status="sending", progress=progress, total=file_size, sent=bytes_sent)
+
+            # Tell the phone the transfer is complete.
+            await peer.relay_envelope(
+                Msg.CTL_FILE_PUSH,
+                {
+                    "file_id": file_id,
+                    "filename": safe_name,
+                    "file_size": file_size,
+                    "action": "done",
+                },
+            )
+            await sender.send(Msg.EVT_FILE_PROGRESS, file_id=file_id, filename=safe_name, status="done", progress=100, total=file_size, sent=bytes_sent)
+            log.info("File pushed to device %s: %s (%d bytes)", sender.device_id, safe_name, bytes_sent)
+        except Exception as e:
+            log.error("File push failed: %s", e)
+            await sender.send(Msg.ERROR, reason="file_push_failed", error=str(e))
+
+    async def _handle_file_pull(self, sender: Connection, payload: Dict[str, Any]) -> None:
+        """Send a pull request envelope to the phone with a generated file_id."""
+        peer = self.peer_of(sender)
+        if peer is None:
+            await sender.send(Msg.ERROR, reason="not_paired", original_type=Msg.CTL_FILE_PULL)
+            return
+        try:
+            file_id = payload.get("file_id", secrets.token_hex(8))
+            filename = payload.get("filename", "unknown")
+            await sender.send(Msg.EVT_FILE_PROGRESS, file_id=file_id, filename=filename, status="requesting", progress=0, total=0)
+            await peer.relay_envelope(Msg.CTL_FILE_PULL, {"file_id": file_id, "filename": filename})
+            log.info("File pull requested from device %s: %s", sender.device_id, filename)
+        except Exception as e:
+            log.error("File pull request failed: %s", e)
+            await sender.send(Msg.ERROR, reason="file_pull_failed", error=str(e))
 
     # ------------------------------------------------------------------ queries
 

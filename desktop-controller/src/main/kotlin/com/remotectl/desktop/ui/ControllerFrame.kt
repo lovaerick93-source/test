@@ -173,10 +173,8 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         connectButton.addActionListener {
             if (hub.isOpen) {
                 hub.disconnect()
-                connectButton.text = "Connect"
             } else {
                 hub.connect(hubUrlField.text.trim())
-                connectButton.text = "Disconnect"
             }
         }
 
@@ -322,6 +320,10 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
     }
 
     // ---------------------------------------------------------------- HubEvents
+
+    override fun onConnectionStateChanged(connected: Boolean) {
+        connectButton.text = if (connected) "Disconnect" else "Connect"
+    }
 
     override fun onStatus(text: String) {
         statusLabel.text = text

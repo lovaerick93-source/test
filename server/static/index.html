@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Control &mdash; Control your Android phone from your desktop</title>
+    <meta name="description" content="Cross-device remote control: mirror your phone screen, tap, swipe, type, launch apps, and transfer files from your desktop.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0b10;
+            --surface: #11131c;
+            --surface-hover: #161825;
+            --border: #232633;
+            --text: #e8eaee;
+            --muted: #8b8f9a;
+            --accent: #6366f1;
+            --accent-hover: #7c7cf5;
+            --accent-glow: rgba(99, 102, 241, 0.35);
+            --success: #10b981;
+            --phone-gradient: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+            --desktop-gradient: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        /* ---------- Header ---------- */
+        header {
+            padding: 1.5rem 0;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: rgba(10, 11, 16, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-mark {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--phone-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        .logo-text span { color: var(--accent); }
+
+        nav a {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-left: 1.75rem;
+            transition: color 0.2s;
+        }
+
+        nav a:hover { color: var(--text); }
+
+        .btn-download-nav {
+            background: var(--accent);
+            color: white;
+            padding: 0.55rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-download-nav:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+        /* ---------- Hero ---------- */
+        .hero {
+            padding: 5rem 0 7rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        @media (max-width: 900px) {
+            .hero-grid { grid-template-columns: 1fr; text-align: center; gap: 2.5rem; }
+        }
+
+        .hero-content h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            margin-bottom: 1.25rem;
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 40%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-content p {
+            font-size: 1.15rem;
+            color: var(--muted);
+            margin-bottom: 2rem;
+            max-width: 460px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) { .hero-actions { justify-content: center; } }
+
+        .btn-primary {
+            background: var(--phone-gradient);
+            color: white;
+            padding: 1rem 1.75rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 20px 35px -5px rgba(139, 92, 246, 0.5); }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text);
+            padding: 1rem 1.75rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover { border-color: var(--accent); background: var(--surface-hover); }
+
+        .hero-visual {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .phone-mockup {
+            width: 320px;
+            height: 620px;
+            background: #000;
+            border-radius: 36px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .phone-screen {
+            padding: 1rem;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .phone-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #ff5f56; box-shadow: 14px 0 0 #ffbd2e, 28px 0 0 #27c93f; }
+
+        .code-display {
+            background: rgba(255,255,255,0.05);
+            border: 1px dashed rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .code-label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+        .code { font-family: 'JetBrains Mono', monospace; font-size: 1.75rem; font-weight: 700; letter-spacing: 0.1em; color: #818cf8; }
+
+        .phone-features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .pf-item {
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            padding: 0.75rem;
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* ---------- Download Section ---------- */
+        .downloads {
+            padding: 6rem 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 3.5rem;
+        }
+
+        .section-header h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+        }
+
+        .section-header p { color: var(--muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
+
+        .download-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 900px) { .download-grid { grid-template-columns: 1fr; } }
+
+        .download-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .download-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.4);
+        }
+
+        .download-card.phone { border-top: 4px solid var(--accent); }
+        .download-card.desktop { border-top: 4px solid #06b6d4; }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .download-card.phone .card-icon { background: var(--phone-gradient); color: white; }
+        .download-card.desktop .card-icon { background: var(--desktop-gradient); color: white; }
+
+        .download-card h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.01em;
+        }
+
+        .download-card p {
+            color: var(--muted);
+            font-size: 0.95rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 0.25rem 0.75rem;
+            border-radius: 100px;
+            background: var(--surface);
+            color: var(--accent);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .platforms {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .platform-btn {
+            flex: 1;
+            min-width: 110px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .platform-btn:hover { border-color: var(--accent); background: var(--surface-hover); }
+
+        .platform-btn.win { border-top: 3px solid #00a4ef; }
+        .platform-btn.mac { border-top: 3px solid #000000; }
+        .platform-btn.lin { border-top: 3px solid #f0f0f0; }
+
+        .download-btn {
+            width: 100%;
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-top: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 8px 20px -5px var(--accent-glow);
+        }
+
+        .download-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+        .version-note {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.75rem;
+            text-align: center;
+        }
+
+        /* ---------- Features ---------- */
+        .features {
+            padding: 6rem 0;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        @media (max-width: 900px) { .features-grid { grid-template-columns: 1fr; gap: 1.5rem; } }
+
+        .feature-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem 1.5rem;
+            transition: all 0.2s;
+        }
+
+        .feature-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .feature-card h4 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.01em;
+        }
+
+        .feature-card p {
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* ---------- How It Works ---------- */
+        .how-it-works {
+            padding: 6rem 0;
+            background: var(--surface);
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        @media (max-width: 900px) { .steps { grid-template-columns: 1fr; gap: 2rem; } }
+
+        .step {
+            text-align: center;
+        }
+
+        .step-number {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--phone-gradient);
+            color: white;
+            font-weight: 800;
+            font-size: 1.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .step h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem; }
+        .step p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+
+        /* ---------- Footer ---------- */
+        footer {
+            padding: 4rem 0 2rem;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        @media (max-width: 900px) { .footer-grid { grid-template-columns: 1fr; gap: 2rem; text-align: center; } }
+
+        .footer-brand .logo { margin-bottom: 1rem; }
+
+        .footer-links h4 { color: var(--text); font-size: 0.95rem; margin-bottom: 1.25rem; }
+        .footer-links ul { list-style: none; }
+        .footer-links li { margin-bottom: 0.75rem; }
+        .footer-links a { color: var(--muted); font-size: 0.9rem; }
+        .footer-links a:hover { color: var(--text); }
+
+        .copyright {
+            border-top: 1px solid var(--border);
+            padding-top: 1.5rem;
+            font-size: 0.8rem;
+        }
+
+        /* ---------- Utility ---------- */
+        .hidden { display: none !important; }
+
+        /* Platform-specific download links (JS-toggled) */
+        .dl-win { border-color: #00a4ef; }
+        .dl-mac { border-color: #000000; }
+        .dl-lin { border-color: #f0f0f0; }
+
+        /* ---------- Platform detection ---------- */
+        .detected-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.25rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+        .detected-bar .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+        }
+        .detected-bar strong { color: var(--text); }
+
+        .platform-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.9rem;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            background: var(--surface);
+            color: var(--accent);
+        }
+        .platform-badge.phone { border-color: rgba(139, 92, 246, 0.35); color: var(--accent); }
+        .platform-badge.desktop { border-color: rgba(6, 182, 212, 0.35); color: #22d3ee; }
+
+        .release-note {
+            margin-top: 1.5rem;
+            padding: 1rem 1.25rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.85rem;
+            color: var(--muted);
+            text-align: center;
+        }
+        .release-note a { color: var(--accent); text-decoration: underline; }
+        .release-note a:hover { color: var(--accent-hover); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container">
+            <div class="header-inner">
+                <div class="logo">
+                    <div class="logo-mark">RC</div>
+                    <div class="logo-text">Remote<span>Control</span></div>
+                </div>
+                <nav>
+                    <a href="#features">Features</a>
+                    <a href="#how-it-works">How it works</a>
+                    <a href="#downloads">Downloads</a>
+                </nav>
+                <button class="btn-download-nav" onclick="document.getElementById('downloads').scrollIntoView({behavior:'smooth'})">Download</button>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <div class="hero-grid">
+                <div class="hero-content">
+                    <h1>Control your Android phone<br>from your desktop.</h1>
+                    <p>Mirror your screen, tap and swipe, type text, launch apps, transfer files, and sync clipboard &mdash; all over a secure, pairing-based connection.</p>
+                    <div class="hero-actions">
+                        <button class="btn-primary" onclick="document.getElementById('downloads').scrollIntoView({behavior:'smooth'})">
+                            <span>&#9654;</span> Get Started
+                        </button>
+                        <a href="/devices" class="btn-secondary">API: Device List</a>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <div class="phone-header"><div class="dot"></div></div>
+                            <div class="code-display">
+                                <div class="code-label">Pairing code</div>
+                                <div class="code">842 179</div>
+                            </div>
+                            <div class="phone-features">
+                                <div class="pf-item">&#10003; Screen mirroring</div>
+                                <div class="pf-item">&#10003; Remote input</div>
+                                <div class="pf-item">&#10003; App launcher</div>
+                                <div class="pf-item">&#10003; File transfer</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="downloads" class="downloads">
+        <div class="container">
+            <div class="section-header">
+                <h2>Downloads</h2>
+                <p>Pick your device and get started in minutes.</p>
+            </div>
+
+            <div class="detected-bar">
+                <div class="dot"></div>
+                <strong>Detected:</strong> <span id="detected-platform">Loading...</span>
+                <span class="platform-badge" id="detected-badge">—</span>
+            </div>
+
+            <div class="download-grid">
+                <!-- Phone -->
+                <div class="download-card phone">
+                    <div class="card-icon">&#128241;</div>
+                    <span class="badge">Android &middot; APK</span>
+                    <h3>Android Agent</h3>
+                    <p>Install on your phone to enable screen mirroring and remote control. Requires Android 7.0 (API 24) or newer.</p>
+                    <div class="platforms">
+                        <button class="platform-btn win" onclick="alert('APK is universal &mdash; works on all Android devices.')">
+                            <span style="font-size:1.2rem;">&#128241;</span><br>APK
+                        </button>
+                    </div>
+                    <button class="download-btn" onclick="location.href='/static/downloads/remote-control-agent-release.apk'">Download APK</button>
+                    <div class="version-note">Version 0.1.0 &middot; Direct download</div>
+                </div>
+
+                <!-- Desktop -->
+                <div class="download-card desktop">
+                    <div class="card-icon">&#128187;</div>
+                    <span class="badge">Desktop &middot; Swing</span>
+                    <h3>Desktop Controller</h3>
+                    <p>Run on Windows, macOS, or Linux to view your phone screen and control it remotely.</p>
+                    <div class="platforms">
+                        <button class="platform-btn win" onclick="selectPlatform('win')">
+                            <span style="font-size:1.2rem;">&#127964;</span><br>Windows
+                        </button>
+                        <button class="platform-btn mac" onclick="selectPlatform('mac')">
+                            <span style="font-size:1.2rem;">&#127967;</span><br>macOS
+                        </button>
+                        <button class="platform-btn lin" onclick="selectPlatform('lin')">
+                            <span style="font-size:1.2rem;">&#128173;</span><br>Linux
+                        </button>
+                    </div>
+                    <button class="download-btn" id="desktop-dl-btn" onclick="downloadDesktop()">Download Desktop App</button>
+                    <div class="version-note" id="desktop-version-note">Version 0.1.0 &middot; Select your platform</div>
+                </div>
+            <div class="release-note">
+                <strong>Latest release:</strong> Builds are published via
+                <a href="https://github.com/lovaerick93-source/test/releases/latest" target="_blank" rel="noopener">GitHub Releases</a>.
+                <br>APKs and desktop binaries are gitignored here — grab the signed files from the release page above.
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Features</h2>
+                <p>Everything you need to remote-control your phone from your computer.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">&#128065;</div>
+                    <h4>Screen mirroring</h4>
+                    <p>See your phone screen live on your desktop with low-latency JPEG frames.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#128071;</div>
+                    <h4>Remote input</h4>
+                    <p>Tap, swipe, type text, and press navigation keys from your desktop.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#127969;</div>
+                    <h4>App launcher</h4>
+                    <p>Browse installed apps and launch them remotely with a double-click.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#128201;</div>
+                    <h4>Pairing codes</h4>
+                    <p>6-digit codes with phone-side consent &mdash; nothing connects without your approval.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#128223;</div>
+                    <h4>File transfer</h4>
+                    <p>Push and pull files between desktop and phone over the secure tunnel.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#128197;</div>
+                    <h4>Clipboard sync</h4>
+                    <p>Copy on one device, paste on the other.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <div class="section-header">
+                <h2>How it works</h2>
+                <p>Three steps from install to full control.</p>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h4>Install the agent</h4>
+                    <p>Download the APK on your phone, install it, and enter your computer's LAN IP as the hub address.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h4>Pair with code</h4>
+                    <p>Start the agent to get a 6-digit pairing code, type it into the desktop app, and accept on your phone.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h4>Take control</h4>
+                    <p>Mirror the screen, tap, swipe, type, launch apps &mdash; everything works in real time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <div class="logo-mark">RC</div>
+                        <div class="logo-text">Remote<span>Control</span></div>
+                    </div>
+                    <p style="color: var(--muted); font-size: 0.9rem; margin-top: 1rem;">Cross-device remote control for Android. Open source, MIT licensed.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#downloads">Downloads</a></li>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="/devices">Device API</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="https://github.com/lovaerick93-source/test">GitHub</a></li>
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">Report issue</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="copyright">
+                Remote Control v0.1.0 &middot; Protocol v1 &middot; MIT License
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let selectedPlatform = null;
+
+        // Auto-detect the visitor's platform and highlight the right download.
+        function detectPlatform() {
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            const isAndroid = /android/i.test(ua);
+            const isiOS = /ipad|iphone|ipod/i.test(ua) && !window.MSStream;
+            const isMobile = isAndroid || isiOS || /mobile/i.test(ua);
+            const platformBadge = document.getElementById('detected-badge');
+            const platformText = document.getElementById('detected-platform');
+
+            if (isAndroid) {
+                platformText.textContent = 'Android phone';
+                platformBadge.textContent = 'APK · Android';
+                platformBadge.className = 'platform-badge phone';
+                selectedPlatform = 'android';
+            } else if (isiOS) {
+                platformText.textContent = 'iPhone / iPad';
+                platformBadge.textContent = 'iOS (coming soon)';
+                platformBadge.className = 'platform-badge phone';
+                selectedPlatform = 'ios';
+            } else if (isMobile) {
+                platformText.textContent = 'Mobile device';
+                platformBadge.textContent = 'APK · Android';
+                platformBadge.className = 'platform-badge phone';
+                selectedPlatform = 'android';
+            } else {
+                const isWin = /windows/i.test(ua);
+                const isMac = /macintosh|mac os x/i.test(ua);
+                const isLin = /linux/i.test(ua);
+                platformText.textContent = isWin ? 'Windows PC' : isMac ? 'macOS' : isLin ? 'Linux' : 'Desktop';
+                platformBadge.textContent = (isWin ? 'Windows' : isMac ? 'macOS' : isLin ? 'Linux' : 'Desktop') + ' · Desktop';
+                platformBadge.className = 'platform-badge desktop';
+                selectedPlatform = isWin ? 'win' : isMac ? 'mac' : isLin ? 'lin' : null;
+            }
+
+            // Pre-select the desktop platform button so the download button works immediately.
+            if (selectedPlatform && selectedPlatform !== 'android' && selectedPlatform !== 'ios') {
+                selectPlatform(selectedPlatform);
+            }
+        }
+
+        function selectPlatform(platform) {
+            selectedPlatform = platform;
+            const btn = document.getElementById('desktop-dl-btn');
+            const note = document.getElementById('desktop-version-note');
+
+            const labels = {
+                win: { name: 'Windows', icon: '&#127964;' },
+                mac: { name: 'macOS', icon: '&#127967;' },
+                lin: { name: 'Linux', icon: '&#128173;' }
+            };
+
+            btn.innerHTML = `${labels[platform].icon} Download for ${labels[platform].name}`;
+            btn.onclick = () => downloadDesktop();
+            note.textContent = `Version 0.1.0 &middot; ${labels[platform].name}`;
+        }
+
+        function downloadDesktop() {
+            if (!selectedPlatform) {
+                alert('Please select a platform first.');
+                return;
+            }
+            const map = {
+                win: '/static/downloads/remote-control-desktop-windows.zip',
+                mac: '/static/downloads/remote-control-desktop-macos.zip',
+                lin: '/static/downloads/remote-control-desktop-linux.zip'
+            };
+            location.href = map[selectedPlatform];
+        }
+
+        // Run detection once the DOM is ready.
+        document.addEventListener('DOMContentLoaded', detectPlatform);
+    </script>
+</body>
+</html>

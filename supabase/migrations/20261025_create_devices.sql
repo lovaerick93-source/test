@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS devices (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Corrective: an earlier version of this table was created without last_ip, and
+-- CREATE TABLE IF NOT EXISTS above will not add it to a table that already
+-- exists. This keeps the file safe to paste again on the live project.
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS last_ip TEXT;
+
 -- Table to store installed apps per device
 CREATE TABLE IF NOT EXISTS device_apps (
     device_id TEXT REFERENCES devices(device_id) ON DELETE CASCADE,
@@ -30,3 +35,7 @@ CREATE TABLE IF NOT EXISTS device_apps (
 
 -- Index for faster lookups by pairing code
 CREATE INDEX IF NOT EXISTS idx_devices_pairing_code ON devices(pairing_code);
+
+-- The hub connects with the service_role key, which bypasses row-level
+-- security, so no policies are opened here and the tables stay locked to the
+-- public anon role.

@@ -30,3 +30,10 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Server uploaded files
+server/files/
+
+# Cloudflare tunnel credentials (never commit real certs)
+server/.cloudflare/config.yml
+server/.cloudflare/*.json

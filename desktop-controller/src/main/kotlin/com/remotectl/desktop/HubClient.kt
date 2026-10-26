@@ -20,11 +20,13 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import java.net.URI
 import java.util.concurrent.TimeUnit
 import javax.swing.SwingUtilities
 
 /** Callbacks the UI implements. Every one is invoked on the Swing EDT. */
 interface HubEvents {
+    fun onConnectionStateChanged(connected: Boolean)
     fun onStatus(text: String)
     fun onWelcome(connId: String)
     fun onDevices(devices: List<DeviceView>)
@@ -61,8 +63,15 @@ class HubClient(private val events: HubEvents) {
 
     fun connect(url: String) {
         disconnect()
-        events.onStatus("Connecting to $url ...")
-        val request = Request.Builder().url(url).build()
+        val normalized = runCatching { normalizeHubUrl(url) }.getOrElse { error ->
+            post {
+                events.onConnectionStateChanged(false)
+                events.onStatus("Connection failed: ${error.message}")
+            }
+            return
+        }
+        events.onStatus("Connecting to $normalized ...")
+        val request = Request.Builder().url(normalized).build()
         socket = http.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 webSocket.send(
@@ -91,12 +100,18 @@ class HubClient(private val events: HubEvents) {
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 socket = null
-                post { events.onStatus("Disconnected from hub ($code)") }
+                post {
+                    events.onConnectionStateChanged(false)
+                    events.onStatus("Disconnected from hub ($code)")
+                }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 socket = null
-                post { events.onStatus("Connection failed: ${t.message}") }
+                post {
+                    events.onConnectionStateChanged(false)
+                    events.onStatus("Connection failed: ${t.message}")
+                }
             }
         })
     }
@@ -104,6 +119,7 @@ class HubClient(private val events: HubEvents) {
     fun disconnect() {
         socket?.close(1000, "client closing")
         socket = null
+        post { events.onConnectionStateChanged(false) }
     }
 
     /** @return false when the socket is down, so the UI can say so instead of silently dropping input. */
@@ -127,7 +143,10 @@ class HubClient(private val events: HubEvents) {
         val payload = envelope.payload
 
         when (envelope.type) {
-            Msg.WELCOME -> post { events.onWelcome(payload.string("conn_id") ?: "?") }
+            Msg.WELCOME -> post {
+                events.onConnectionStateChanged(true)
+                events.onWelcome(payload.string("conn_id") ?: "?")
+            }
 
             Msg.DEVICE_LIST -> {
                 val devices = (payload["devices"] as? JsonArray)
@@ -155,5 +174,25 @@ class HubClient(private val events: HubEvents) {
         }
     }
 
+    private fun normalizeHubUrl(rawUrl: String): String {
+        var raw = rawUrl.trim()
+        if (raw.isEmpty()) raw = DEFAULT_HUB_URL
+        if (!raw.contains("://")) raw = "http://$raw"
+        raw = raw.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://")
+
+        val uri = URI(raw)
+        val scheme = uri.scheme ?: "ws"
+        val host = uri.host ?: throw IllegalArgumentException("enter a hub host or URL")
+        val port = if (uri.port != -1) uri.port else DEFAULT_HUB_PORT
+        val path = uri.rawPath?.takeIf { it.isNotBlank() && it != "/" } ?: "/ws"
+        val query = uri.rawQuery?.let { "?$it" } ?: ""
+        return "$scheme://$host:$port$path$query"
+    }
+
     private fun post(action: () -> Unit) = SwingUtilities.invokeLater(action)
+
+    companion object {
+        private const val DEFAULT_HUB_PORT = 8000
+        private const val DEFAULT_HUB_URL = "ws://127.0.0.1:8000/ws"
+    }
 }

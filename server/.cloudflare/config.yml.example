@@ -1,0 +1,32 @@
+# Cloudflare Tunnel configuration for Remote Control hub
+# 
+# Setup:
+#   1. Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/
+#   2. Authenticate: cloudflared tunnel login
+#   3. Create tunnel: cloudflared tunnel create remote-control
+#   4. Route DNS: cloudflared tunnel route dns remote-control <your-domain>
+#   5. Copy your tunnel UUID below and update the domain
+#   6. Run: cloudflared tunnel --config .cloudflare/config.yml run remote-control
+
+tunnel: <YOUR_TUNNEL_UUID>
+credentials-file: /root/.cloudflared/<YOUR_TUNNEL_UUID>.json
+
+ingress:
+  # Serve the download page + static assets
+  - hostname: <your-domain>
+    service: http://localhost:8000
+
+  # HTTP health / device list
+  - hostname: <your-domain>
+    path: /devices
+    service: http://localhost:8000
+
+  # WebSocket for the hub
+  - hostname: <your-domain>
+    path: /ws
+    service: http://localhost:8000
+    originRequest:
+      httpHostHeader: <your-domain>
+
+  # Catch-all -> download page
+  - service: http_status:404

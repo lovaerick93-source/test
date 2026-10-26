@@ -24,10 +24,13 @@ from __future__ import annotations
 import json
 import logging
 import time
+import os
 from contextlib import asynccontextmanager
 from typing import Any, Dict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from hub import Connection, Hub, new_id
 from models import PROTOCOL_VERSION, DeviceInfo, Hello, Msg
@@ -49,15 +52,27 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Remote Control Hub", version="0.1.0", lifespan=lifespan)
 
+# Mount the downloads folder so users can download the APK and Desktop app
+# Files should be placed in server/static/downloads/
+if not os.path.exists("static/downloads"):
+    os.makedirs("static/downloads", exist_ok=True)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
-async def root() -> Dict[str, Any]:
+async def root():
+    # Serve the download page by default
+    index_path = os.path.join("static", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
     return {
         "service": "remote-control-hub",
         "version": "0.1.0",
         "protocol_version": PROTOCOL_VERSION,
         "agents_online": hub.agent_count(),
         "controllers_online": hub.controller_count(),
+        "downloads": "/static/index.html"
     }
 
 
@@ -190,6 +205,9 @@ async def _dispatch(conn: Connection, frame: Dict[str, Any]) -> None:
         return
 
     if msg_type == Msg.DEVICE_INFO:
+        if conn.role != "agent":
+            await conn.send(Msg.ERROR, reason="agents_only")
+            return
         try:
             info = DeviceInfo(**payload)
         except Exception:
@@ -200,6 +218,9 @@ async def _dispatch(conn: Connection, frame: Dict[str, Any]) -> None:
         return
 
     if msg_type == Msg.CONNECT_REQUEST:
+        if conn.role != "controller":
+            await conn.send(Msg.ERROR, reason="controllers_only")
+            return
         await hub.request_connection(
             conn,
             str(payload.get("device_id", "")),
@@ -208,6 +229,9 @@ async def _dispatch(conn: Connection, frame: Dict[str, Any]) -> None:
         return
 
     if msg_type == Msg.CONNECT_RESPONSE:
+        if conn.role != "agent":
+            await conn.send(Msg.ERROR, reason="agents_only")
+            return
         await hub.respond_connection(conn, bool(payload.get("accepted", False)))
         return
 

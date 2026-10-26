@@ -198,6 +198,11 @@ class AgentService : Service() {
                         put("protocol_version", PROTOCOL_VERSION)
                         put("device_id", config.deviceId)
                         put("auto_approve", config.autoApprove)
+                        // Re-claim the code the owner already noted down; the hub
+                        // honours it when it is free or still this device's own.
+                        config.lastPairingCode
+                            .takeIf { it.isNotEmpty() }
+                            ?.let { put("pairing_code", it) }
                     },
                 ),
             )

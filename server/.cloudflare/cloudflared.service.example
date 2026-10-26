@@ -1,0 +1,15 @@
+[Unit]
+Description=Cloudflare Tunnel for Remote Control hub
+After=network.target
+
+[Service]
+Type=simple
+User=root
+# Path to your cloudflared binary
+ExecStart=/usr/local/bin/cloudflared tunnel --config /opt/remote-control/server/.cloudflare/config.yml run remote-control
+Restart=always
+RestartSec=5
+Environment=CLOUDFLARED_TUNNEL_NAME=remote-control
+
+[Install]
+WantedBy=multi-user.target

@@ -13,6 +13,7 @@ env:
   GRADLE_VERSION: '8.14'
   AGP_VERSION: '8.11.0'
   COMPILE_SDK: '35'
+  BUILD_TOOLS_VERSION: '35.0.0'
 
 jobs:
   # ---------------------------------------------------------------- Android
@@ -33,14 +34,17 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: ${{ env.COMPILE_SDK }}
-          target: ${{ env.COMPILE_SDK }}
-          build-tools-version: '35.0.0'
+        run: |
+          # GitHub ubuntu-latest runners ship with the Android SDK pre-installed.
+          # Install the platform + build tools we target, and accept licenses.
+          sdkmanager --install "platforms;android-${{ env.COMPILE_SDK }}" "build-tools;${{ env.BUILD_TOOLS_VERSION }}" >/dev/null 2>&1 || true
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
 
-      - name: Accept Android SDK licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+      - name: Verify Android SDK
+        run: |
+          sdkmanager --version
+          echo "ANDROID_HOME=$ANDROID_HOME"
 
       - name: Assemble debug APK
         run: |

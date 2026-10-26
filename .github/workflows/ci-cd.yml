@@ -34,17 +34,12 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Setup Android SDK
-        run: |
-          # GitHub ubuntu-latest runners ship with the Android SDK pre-installed.
-          # Install the platform + build tools we target, and accept licenses.
-          sdkmanager --install "platforms;android-${{ env.COMPILE_SDK }}" "build-tools;${{ env.BUILD_TOOLS_VERSION }}" >/dev/null 2>&1 || true
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: ${{ env.COMPILE_SDK }}
 
-      - name: Verify Android SDK
-        run: |
-          sdkmanager --version
-          echo "ANDROID_HOME=$ANDROID_HOME"
+      - name: Set ANDROID_HOME
+        run: echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
 
       - name: Assemble debug APK
         run: |

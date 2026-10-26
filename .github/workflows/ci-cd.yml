@@ -41,12 +41,10 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-${{ env.COMPILE_SDK }}" >/dev/null 2>&1 || true
 
       - name: Make gradlew executable
-        run: chmod +x android-agent/gradlew
+        run: chmod +x gradlew
 
       - name: Assemble debug APK
-        run: |
-          cd android-agent
-          ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew :android-agent:assembleDebug --no-daemon --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -57,9 +55,7 @@ jobs:
 
       - name: Assemble release APK
         if: github.event_name == 'push'
-        run: |
-          cd android-agent
-          ./gradlew assembleRelease --no-daemon --stacktrace
+        run: ./gradlew :android-agent:assembleRelease --no-daemon --stacktrace
 
       - name: Upload release APK
         if: github.event_name == 'push'
@@ -87,20 +83,17 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Make gradlew executable
-        run: chmod +x desktop-controller/gradlew
+        run: chmod +x gradlew
 
       - name: Build desktop controller
-        run: |
-          cd desktop-controller
-          ./gradlew build --no-daemon --stacktrace
+        run: ./gradlew :desktop-controller:build --no-daemon --stacktrace
 
       - name: Create desktop zip
         run: |
-          cd desktop-controller/build/libs
-          mkdir -p ../../../dist/desktop-controller
-          cp *.jar ../../../dist/desktop-controller/
-          cd ../../../dist/desktop-controller
-          zip -r ../remote-control-desktop-linux.zip .
+          mkdir -p dist/desktop-controller
+          cp desktop-controller/build/libs/*.jar dist/desktop-controller/
+          cd dist/desktop-controller
+          zip -r ../desktop-controller-linux.zip .
           cd ../..
           echo "desktop-controller-linux" > dist/.platform
 

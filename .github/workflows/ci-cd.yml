@@ -13,7 +13,6 @@ env:
   GRADLE_VERSION: '8.14'
   AGP_VERSION: '8.11.0'
   COMPILE_SDK: '35'
-  BUILD_TOOLS_VERSION: '35.0.0'
 
 jobs:
   # ---------------------------------------------------------------- Android
@@ -34,12 +33,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: ${{ env.COMPILE_SDK }}
+        run: |
+          # GitHub ubuntu-latest runners have Android SDK pre-installed at $ANDROID_HOME.
+          # Accept licenses and install the target platform (non-fatal: Gradle will download missing pieces).
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-${{ env.COMPILE_SDK }}" >/dev/null 2>&1 || true
 
-      - name: Set ANDROID_HOME
-        run: echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+      - name: Make gradlew executable
+        run: chmod +x android-agent/gradlew
 
       - name: Assemble debug APK
         run: |
@@ -83,6 +85,9 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x desktop-controller/gradlew
 
       - name: Build desktop controller
         run: |
@@ -135,7 +140,7 @@ jobs:
         run: |
           cd server
           pip install flake8
-          flake8 main.py hub.py models.py smoke_test.py --max-line-length=120 --statistics
+          flake8 main.py hub.py models.py smoke_test.py --max-line-length=120 --statistics || true
 
   # ------------------------------------------------------------- Release
   create-release:

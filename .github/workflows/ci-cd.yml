@@ -12,7 +12,7 @@ env:
   JAVA_VERSION: '17'
   GRADLE_VERSION: '8.14'
   AGP_VERSION: '8.11.0'
-  COMPILE_SDK: '36'
+  COMPILE_SDK: '35'
 
 jobs:
   # ---------------------------------------------------------------- Android
@@ -37,7 +37,7 @@ jobs:
         with:
           api-level: ${{ env.COMPILE_SDK }}
           target: ${{ env.COMPILE_SDK }}
-          build-tools-version: '36.0.0'
+          build-tools-version: '35.0.0'
 
       - name: Accept Android SDK licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses

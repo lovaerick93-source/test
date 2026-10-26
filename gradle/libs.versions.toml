@@ -5,7 +5,7 @@ coroutines = "1.11.0"
 serialization = "1.12.0"
 # OkHttp 4.12.0 rather than 5.x on purpose: okhttp-android 5.x demands
 # compileSdk 37, while 4.12.0 ships its Android platform support inside the
-# core artifact and runs on the stable android-36 SDK this project targets.
+# core artifact and runs on the stable android-35 SDK this project targets.
 # The APIs used here (WebSocket, WebSocketListener, pingInterval) are identical
 # in both lines.
 okhttp = "4.12.0"

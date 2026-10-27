@@ -1,3 +1,7 @@
 ﻿name = "test"
 main = "worker.js"
 compatibility_date = "2024-10-01"
+
+[assets]
+directory = "./server/static"
+binding = "ASSETS"

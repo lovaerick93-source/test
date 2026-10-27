@@ -58,8 +58,10 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            if (keystoreFile.exists()) {
-                signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (keystoreFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
             }
         }
     }

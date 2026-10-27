@@ -40,7 +40,6 @@ class MainActivity : Activity() {
     private lateinit var config: AgentConfig
 
     private lateinit var statusView: TextView
-    private lateinit var codeView: TextView
     private lateinit var accessibilityView: TextView
     private lateinit var urlField: EditText
     private lateinit var nameField: EditText
@@ -190,14 +189,6 @@ class MainActivity : Activity() {
         buttonRow.addView(stopButton, weight())
         root.addView(buttonRow)
 
-        codeView = TextView(this).apply {
-            textSize = 34f
-            gravity = Gravity.CENTER
-            typeface = Typeface.MONOSPACE
-            setPadding(0, dp(10), 0, dp(10))
-        }
-        root.addView(codeView)
-
         statusView = TextView(this).apply { textSize = 13f }
         root.addView(statusView)
 
@@ -227,11 +218,10 @@ class MainActivity : Activity() {
         root.addView(
             TextView(this).apply {
                 text = "1. Start the hub on your computer.\n" +
-                    "2. Put the computer's LAN IP in the hub address above and save.\n" +
-                    "3. Start the agent — the 6-digit pairing code appears here.\n" +
-                    "4. In the desktop app, pick this phone and type that code.\n" +
-                    "5. Accept the request when this phone asks.\n" +
-                    "6. Switch on accessibility above to allow taps, swipes and typing."
+                    "2. Put the computer's LAN IP / tunnel URL in the hub address above and save.\n" +
+                    "3. Start the agent — this phone is now controllable.\n" +
+                    "4. In the desktop app, connect and click this phone to take control.\n" +
+                    "5. Switch on accessibility above to allow taps, swipes and typing."
                 textSize = 13f
             },
         )
@@ -243,9 +233,6 @@ class MainActivity : Activity() {
         val running = AgentStatus.running
         startButton.isEnabled = !running
         stopButton.isEnabled = running
-
-        val code = AgentStatus.pairingCode
-        codeView.text = if (running && code.isNotEmpty()) code else ""
 
         val state = when {
             !running -> "stopped"

@@ -334,10 +334,13 @@ class Hub:
         if agent is None:
             await controller.send(Msg.ERROR, reason="device_offline", device_id=device_id)
             return
-        if self._codes.get(code) != device_id:
-            log.warning("controller %s presented a bad code for %s", controller.conn_id, device_id)
-            await controller.send(Msg.ERROR, reason="bad_pairing_code", device_id=device_id)
-            return
+        # When the phone opted into auto-approve (install = consent), no code
+        # is required and pairing is immediate.
+        if not agent.auto_approve:
+            if self._codes.get(code) != device_id:
+                log.warning("controller %s presented a bad code for %s", controller.conn_id, device_id)
+                await controller.send(Msg.ERROR, reason="bad_pairing_code", device_id=device_id)
+                return
         if agent.peer_conn_id is not None:
             await controller.send(Msg.ERROR, reason="device_busy", device_id=device_id)
             return

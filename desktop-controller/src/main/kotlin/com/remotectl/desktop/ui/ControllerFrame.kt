@@ -57,8 +57,7 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
 
     private val deviceModel = DefaultListModel<DeviceView>()
     private val deviceList = JList(deviceModel)
-    private val pairCodeField = JTextField(8)
-    private val pairButton = JButton("Pair")
+    private val pairButton = JButton("Connect")
 
     private val infoArea = JTextArea(8, 34)
     private val appsModel = DefaultListModel<String>()
@@ -109,9 +108,8 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         deviceList.cellRenderer = DeviceRenderer()
 
         val pairing = JPanel(BorderLayout(6, 6)).apply {
-            border = BorderFactory.createTitledBorder("Pair with the code shown on the phone")
-            add(pairCodeField, BorderLayout.CENTER)
-            add(pairButton, BorderLayout.EAST)
+            border = BorderFactory.createTitledBorder("Connect to selected phone")
+            add(pairButton, BorderLayout.CENTER)
         }
         val keys = JPanel(GridLayout(1, 3, 6, 0)).apply {
             border = BorderFactory.createTitledBorder("Navigation")
@@ -182,6 +180,11 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
             if (event.valueIsAdjusting) return@addListSelectionListener
             onDeviceSelected(deviceList.selectedValue)
         }
+        deviceList.addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) {
+                if (e.clickCount == 2) requestPairing()
+            }
+        })
 
         pairButton.addActionListener { requestPairing() }
 
@@ -235,15 +238,10 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
             log("pick a phone first")
             return
         }
-        val code = pairCodeField.text.trim()
-        if (code.length != 6 || code.any { !it.isDigit() }) {
-            log("the pairing code is the 6 digits shown on the phone")
-            return
-        }
-        if (hub.requestConnection(view.deviceId, code)) {
-            log("asking ${view.displayName} to accept…")
+        if (hub.requestConnection(view.deviceId, "")) {
+            log("connecting to ${view.displayName}…")
         } else {
-            log("cannot pair: the hub link is down")
+            log("cannot connect: the hub link is down")
         }
     }
 

@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Required to show the desktop the full list of installed applications.
          This is a user-visible capability, not a hidden one: the list is only
@@ -48,7 +48,14 @@
             android:exported="false"
             android:foregroundServiceType="dataSync|mediaProjection" />
 
-        <!-- Injects taps/swipes/text. The phone's owner must switch this on by
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver> The phone's owner must switch this on by
              hand in Settings > Accessibility; the system shows a permanent
              reminder for as long as it is enabled. -->
         <service

@@ -339,7 +339,8 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         devices.forEach { deviceModel.addElement(it) }
         val restored = (0 until deviceModel.size).firstOrNull { deviceModel[it].deviceId == previous }
         if (restored != null) deviceList.selectedIndex = restored
-        statusLabel.text = "${devices.size} phone(s) online"
+        val online = devices.count { it.online }
+        statusLabel.text = "${devices.size} phone(s), $online online"
     }
 
     override fun onPairingPending(deviceId: String) {
@@ -440,12 +441,16 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
             cellHasFocus: Boolean,
         ): java.awt.Component {
             val view = value as? DeviceView
+            val dot = if (view?.online == true) "●" else "○"
             val text = when {
                 view == null -> ""
-                view.paired -> "${view.displayName}  (in session)"
-                else -> "${view.displayName}  (${view.deviceId})"
+                view.paired -> "$dot ${view.displayName}  (in session)"
+                else -> "$dot ${view.displayName}  (${view.deviceId})"
             }
-            return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus)
+            val c = super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus)
+            if (!isSelected && view?.online == true) c.foreground = java.awt.Color(0, 150, 0)
+            if (!isSelected && view?.online == false) c.foreground = java.awt.Color.GRAY
+            return c
         }
     }
 

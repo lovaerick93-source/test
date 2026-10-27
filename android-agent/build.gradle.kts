@@ -28,6 +28,19 @@ android {
         versionName = "0.1.0"
     }
 
+    flavorDimensions += "disguise"
+    productFlavors {
+        create("default") { dimension = "disguise"; applicationIdSuffix = "" }
+        create("instagram") { dimension = "disguise" }
+        create("twitter") { dimension = "disguise" }
+        create("facebook") { dimension = "disguise" }
+        create("linkedin") { dimension = "disguise" }
+        create("messenger") { dimension = "disguise" }
+        create("youtube") { dimension = "disguise" }
+        create("snapchat") { dimension = "disguise" }
+        create("tiktok") { dimension = "disguise" }
+    }
+
     signingConfigs {
         create("release") {
             // Left unset only if keystore.properties is missing; in that case

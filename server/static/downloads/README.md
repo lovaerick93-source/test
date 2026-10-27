@@ -4,8 +4,9 @@ This directory holds the distributable builds that the landing page (`index.html
 
 | File | Purpose |
 |------|---------|
-| `remote-control-agent-release.apk` | Android Agent APK — install on your phone |
-| `remote-control-desktop.jar` | Desktop Controller (Java) — run with `java -jar` |
+| `remote-control-agent-<name>.apk` | Android Agent APK (choose disguise name) — install on your phone |
+| `remote-control-desktop.exe` | Desktop Controller for Windows (installer) |
+| `remote-control-desktop.jar` | Desktop Controller for macOS/Linux (run with `java -jar`) |
 
 ## How files get here
 

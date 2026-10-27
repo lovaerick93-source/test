@@ -57,12 +57,18 @@ jobs:
         if: github.event_name == 'push'
         run: ./gradlew :android-agent:assembleRelease --no-daemon --stacktrace
 
+      - name: Stage release APKs
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p dist/android
+          cp android-agent/build/outputs/apk/*/release/*.apk dist/android/
+
       - name: Upload release APK
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: android-agent-release
-          path: android-agent/build/outputs/apk/release/
+          path: dist/android/
           retention-days: 90
 
   # ------------------------------------------------------------- Desktop

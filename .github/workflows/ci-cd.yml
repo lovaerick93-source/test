@@ -211,14 +211,15 @@ jobs:
 
             ### Downloads
 
-            - **Android Agent (APK)** — install on your phone
-            - **Desktop Controller (Linux)** — run on your desktop
+            - **Android Agent (APK)** — install on your phone (choose a disguise icon on the download page)
+            - **Desktop Controller (Windows)** — run the installer
+            - **Desktop Controller (Linux/macOS)** — run with `java -jar`
 
             ### Getting started
 
             1. Install the APK on your phone.
-            2. Start the hub server on your computer.
-            3. Run the desktop app, enter the 6-digit code from your phone, and accept.
+            2. Start the hub server on your computer (or expose it via Cloudflare Tunnel).
+            3. Run the desktop app and click your phone to take control.
           draft: false
           prerelease: false
           files: |

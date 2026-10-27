@@ -80,37 +80,81 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
     init {
         defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
         layout = BorderLayout(8, 8)
-        rootPane.border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        rootPane.border = BorderFactory.createEmptyBorder(0, 0, 0, 0)
+        contentPane.background = java.awt.Color(0xF5, 0xF7, 0xFB)
 
         add(buildTopBar(), BorderLayout.NORTH)
         add(buildMiddle(), BorderLayout.CENTER)
         add(buildLog(), BorderLayout.SOUTH)
 
         wireActions()
-        minimumSize = Dimension(1080, 680)
+        minimumSize = Dimension(1180, 760)
         pack()
         setLocationRelativeTo(null)
     }
 
     // -------------------------------------------------------------- assembling
 
-    private fun buildTopBar(): JPanel = JPanel(BorderLayout(8, 4)).apply {
-        val row = JPanel(BorderLayout(6, 0))
-        row.add(JLabel("Hub "), BorderLayout.WEST)
-        row.add(hubUrlField, BorderLayout.CENTER)
-        row.add(connectButton, BorderLayout.EAST)
-        add(row, BorderLayout.NORTH)
+    private fun buildTopBar(): JPanel = JPanel(BorderLayout(8, 6)).apply {
+        background = java.awt.Color(0x1E, 0x3A, 0x5F)
+        border = BorderFactory.createEmptyBorder(12, 16, 12, 16)
+        val title = JLabel("Remote Control").apply {
+            font = Font("Segoe UI", Font.BOLD, 20)
+            foreground = java.awt.Color.WHITE
+        }
+        val subtitle = JLabel("Desktop controller").apply {
+            font = Font("Segoe UI", Font.PLAIN, 12)
+            foreground = java.awt.Color(0xB0, 0xC4, 0xDE)
+        }
+        val titleBox = JPanel(BorderLayout()).apply {
+            isOpaque = false
+            add(title, BorderLayout.NORTH)
+            add(subtitle, BorderLayout.SOUTH)
+        }
+        add(titleBox, BorderLayout.WEST)
+
+        val row = JPanel(BorderLayout(6, 0)).apply {
+            isOpaque = false
+            add(JLabel("Hub: ").apply {
+                foreground = java.awt.Color.WHITE
+                font = Font("Segoe UI", Font.BOLD, 12)
+            }, BorderLayout.WEST)
+            add(hubUrlField.apply {
+                font = Font("Segoe UI", Font.PLAIN, 12)
+            }, BorderLayout.CENTER)
+            add(connectButton.apply {
+                font = Font("Segoe UI", Font.BOLD, 12)
+                background = java.awt.Color(0x2E, 0x7D, 0x32)
+                foreground = java.awt.Color.WHITE
+                isOpaque = true
+            }, BorderLayout.EAST)
+        }
+        add(row, BorderLayout.CENTER)
+
+        statusLabel.apply {
+            foreground = java.awt.Color(0xB0, 0xC4, 0xDE)
+            font = Font("Segoe UI", Font.PLAIN, 11)
+        }
         add(statusLabel, BorderLayout.SOUTH)
     }
 
     private fun buildMiddle(): JSplitPane {
         deviceList.selectionMode = ListSelectionModel.SINGLE_SELECTION
         deviceList.cellRenderer = DeviceRenderer()
+        deviceList.font = Font("Segoe UI", Font.PLAIN, 13)
 
-        val pairing = JPanel(BorderLayout(6, 6)).apply {
-            border = BorderFactory.createTitledBorder("Connect to selected phone")
-            add(pairButton, BorderLayout.CENTER)
+        val connectBtn = pairButton.apply {
+            text = "Connect"
+            font = Font("Segoe UI", Font.BOLD, 12)
+            background = java.awt.Color(0x19, 0x76, 0xD2)
+            foreground = java.awt.Color.WHITE
+            isOpaque = true
         }
+        val pairing = JPanel(BorderLayout(6, 6)).apply {
+            border = BorderFactory.createTitledBorder("Selected phone")
+            add(connectBtn, BorderLayout.CENTER)
+        }
+
         val keys = JPanel(GridLayout(1, 3, 6, 0)).apply {
             border = BorderFactory.createTitledBorder("Navigation")
             add(JButton("Back").apply { addActionListener { sendKey(NavKey.BACK) } })
@@ -119,7 +163,7 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         }
 
         val left = JPanel(BorderLayout(6, 6)).apply {
-            border = BorderFactory.createTitledBorder("Phones")
+            border = BorderFactory.createTitledBorder("Phones  (double-click to connect)")
             preferredSize = Dimension(300, 0)
             add(JScrollPane(deviceList), BorderLayout.CENTER)
             add(JPanel(GridLayout(2, 1, 0, 6)).apply {
@@ -129,41 +173,54 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         }
 
         infoArea.isEditable = false
-        infoArea.font = Font(Font.MONOSPACED, Font.PLAIN, 12)
+        infoArea.font = Font("Consolas", Font.PLAIN, 12)
+        infoArea.background = java.awt.Color(0xF8, 0xFA, 0xFC)
 
         val appsButton = JButton("List installed apps").apply {
             addActionListener { requestApps() }
+            font = Font("Segoe UI", Font.PLAIN, 12)
         }
         val right = JPanel(BorderLayout(6, 6)).apply {
-            border = BorderFactory.createTitledBorder("Device")
+            border = BorderFactory.createTitledBorder("Device details")
             preferredSize = Dimension(330, 0)
             add(JScrollPane(infoArea), BorderLayout.NORTH)
             add(JScrollPane(appsList), BorderLayout.CENTER)
             add(appsButton, BorderLayout.SOUTH)
         }
 
+        mirrorButton.apply {
+            font = Font("Segoe UI", Font.BOLD, 12)
+            background = java.awt.Color(0x7B, 0x1F, 0xA2)
+            foreground = java.awt.Color.WHITE
+            isOpaque = true
+        }
         val mirrorBar = JPanel(BorderLayout(8, 0)).apply {
             add(mirrorButton, BorderLayout.WEST)
             add(mirrorState, BorderLayout.CENTER)
         }
+        mirrorState.font = Font("Segoe UI", Font.PLAIN, 12)
         val centre = JPanel(BorderLayout(6, 6)).apply {
-            border = BorderFactory.createTitledBorder("Screen — click to tap, drag to swipe")
+            border = BorderFactory.createTitledBorder("Screen  (click to tap, drag to swipe)")
             add(mirrorBar, BorderLayout.NORTH)
             add(mirrorPanel, BorderLayout.CENTER)
         }
 
         val centreAndRight = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, centre, right).apply {
             resizeWeight = 0.68
+            dividerSize = 6
         }
         return JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, centreAndRight).apply {
             resizeWeight = 0.22
+            dividerSize = 6
         }
     }
 
     private fun buildLog(): JPanel = JPanel(BorderLayout()).apply {
-        border = BorderFactory.createTitledBorder("Activity")
+        border = BorderFactory.createTitledBorder("Activity log")
         logArea.isEditable = false
-        logArea.font = Font(Font.MONOSPACED, Font.PLAIN, 11)
+        logArea.font = Font("Consolas", Font.PLAIN, 11)
+        logArea.background = java.awt.Color(0x1F, 0x29, 0x37)
+        logArea.foreground = java.awt.Color(0xE5, 0xE7, 0xEB)
         add(JScrollPane(logArea), BorderLayout.CENTER)
     }
 

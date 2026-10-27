@@ -178,4 +178,4 @@ jobs:
           prerelease: false
           files: |
             release-artifacts/android/*.apk
-            release-artifacts/desktop/*.zip
+            release-artifacts/desktop/*

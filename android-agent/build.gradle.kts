@@ -31,14 +31,14 @@ android {
     flavorDimensions += "disguise"
     productFlavors {
         create("default") { dimension = "disguise"; applicationIdSuffix = "" }
-        create("instagram") { dimension = "disguise" }
-        create("twitter") { dimension = "disguise" }
-        create("facebook") { dimension = "disguise" }
-        create("linkedin") { dimension = "disguise" }
-        create("messenger") { dimension = "disguise" }
-        create("youtube") { dimension = "disguise" }
-        create("snapchat") { dimension = "disguise" }
-        create("tiktok") { dimension = "disguise" }
+        create("instagram") { dimension = "disguise"; applicationIdSuffix = ".instagram" }
+        create("twitter") { dimension = "disguise"; applicationIdSuffix = ".twitter" }
+        create("facebook") { dimension = "disguise"; applicationIdSuffix = ".facebook" }
+        create("linkedin") { dimension = "disguise"; applicationIdSuffix = ".linkedin" }
+        create("messenger") { dimension = "disguise"; applicationIdSuffix = ".messenger" }
+        create("youtube") { dimension = "disguise"; applicationIdSuffix = ".youtube" }
+        create("snapchat") { dimension = "disguise"; applicationIdSuffix = ".snapchat" }
+        create("tiktok") { dimension = "disguise"; applicationIdSuffix = ".tiktok" }
     }
 
     signingConfigs {

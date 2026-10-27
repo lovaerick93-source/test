@@ -100,7 +100,40 @@ jobs:
           path: dist/remote-control-desktop.jar
           retention-days: 90
 
-  # ------------------------------------------------------------- Server
+  # ------------------------------------------------------------- Desktop (Windows installer)
+  desktop-windows:
+    runs-on: windows-latest
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build desktop fat jar
+        run: ./gradlew :desktop-controller:fatJar --no-daemon --stacktrace
+
+      - name: Create Windows installer
+        shell: pwsh
+        run: |
+          $jdk = $env:JAVA_HOME
+          & "$jdk\bin\jpackage.exe" --input desktop-controller\build\libs --name "RemoteControl" --main-jar remote-control-desktop.jar --main-class com.remotectl.desktop.MainKt --type exe --dest dist --win-dir-chooser --win-menu --win-shortcut --app-version "0.1.0"
+          $exe = Get-ChildItem dist\*.exe | Select-Object -First 1
+          Copy-Item $exe.FullName dist\remote-control-desktop.exe
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-controller-windows
+          path: dist/remote-control-desktop.exe
+          retention-days: 90
   server-tests:
     runs-on: ubuntu-latest
     steps:
@@ -133,7 +166,7 @@ jobs:
 
   # ------------------------------------------------------------- Release
   create-release:
-    needs: [android-agent, desktop-controller, server-tests]
+    needs: [android-agent, desktop-controller, desktop-windows, server-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -152,6 +185,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: desktop-controller
+          path: release-artifacts/desktop
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-controller-windows
           path: release-artifacts/desktop
 
       - name: Create release

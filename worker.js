@@ -3,6 +3,7 @@
 const ASSET_MAP = {
   "remote-control-agent-release.apk": "android-agent-release-unsigned.apk",
   "remote-control-desktop.jar": "remote-control-desktop.jar",
+  "remote-control-desktop.exe": "remote-control-desktop.exe",
 };
 
 export default {

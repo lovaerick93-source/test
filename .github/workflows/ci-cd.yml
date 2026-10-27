@@ -139,6 +139,8 @@ jobs:
   create-release:
     needs: [android-agent, desktop-controller, server-tests]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout

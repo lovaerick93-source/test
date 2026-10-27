@@ -658,7 +658,7 @@
                             <span style="font-size:1.2rem;">&#128241;</span><br>APK
                         </button>
                     </div>
-                    <button class="download-btn" onclick="location.href='https://github.com/lovaerick93-source/test/releases/latest/download/android-agent-release-unsigned.apk'">Download APK</button>
+                    <button class="download-btn" onclick="location.href='/static/downloads/remote-control-agent-release.apk'">Download APK</button>
                     <div class="version-note">Version 0.1.0 &middot; Direct download</div>
                 </div>
 
@@ -855,9 +855,9 @@
                 return;
             }
             const map = {
-                win: 'https://github.com/lovaerick93-source/test/releases/latest',
-                mac: 'https://github.com/lovaerick93-source/test/releases/latest',
-                lin: 'https://github.com/lovaerick93-source/test/releases/latest/download/desktop-controller-linux.zip'
+                win: '/static/downloads/remote-control-desktop-windows.zip',
+                mac: '/static/downloads/remote-control-desktop-macos.zip',
+                lin: '/static/downloads/remote-control-desktop-linux.zip'
             };
             location.href = map[selectedPlatform];
         }

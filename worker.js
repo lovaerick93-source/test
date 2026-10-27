@@ -1,8 +1,26 @@
-﻿export default {
+﻿const RELEASE_BASE = "https://github.com/lovaerick93-source/test/releases/latest/download/";
+
+const ASSET_MAP = {
+  "remote-control-agent-release.apk": "android-agent-release-unsigned.apk",
+  "remote-control-desktop-windows.zip": "desktop-controller-linux.zip",
+  "remote-control-desktop-macos.zip": "desktop-controller-linux.zip",
+  "remote-control-desktop-linux.zip": "desktop-controller-linux.zip",
+};
+
+export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/static/downloads/")) {
-      return Response.redirect("https://github.com/lovaerick93-source/test/releases/latest", 302);
+    const m = url.pathname.match(/^\/static\/downloads\/(.+)$/);
+    if (m) {
+      const name = m[1];
+      const asset = ASSET_MAP[name];
+      if (asset) {
+        const upstream = await fetch(RELEASE_BASE + asset, { redirect: "follow" });
+        const headers = new Headers(upstream.headers);
+        headers.set("Content-Disposition", `attachment; filename="${name}"`);
+        return new Response(upstream.body, { status: upstream.status, headers });
+      }
+      return new Response("Not found", { status: 404 });
     }
     if (url.pathname.startsWith("/static/")) {
       url.pathname = url.pathname.slice("/static".length);

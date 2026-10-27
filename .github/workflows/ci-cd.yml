@@ -86,22 +86,18 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build desktop controller
-        run: ./gradlew :desktop-controller:build --no-daemon --stacktrace
+        run: ./gradlew :desktop-controller:fatJar --no-daemon --stacktrace
 
-      - name: Create desktop zip
+      - name: Stage desktop artifact
         run: |
-          mkdir -p dist/desktop-controller
-          cp desktop-controller/build/libs/*.jar dist/desktop-controller/
-          cd dist/desktop-controller
-          zip -r ../desktop-controller-linux.zip .
-          cd ../..
-          echo "desktop-controller-linux" > dist/.platform
+          mkdir -p dist
+          cp desktop-controller/build/libs/remote-control-desktop.jar dist/
 
       - name: Upload desktop build
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-controller-linux
-          path: dist/desktop-controller-linux.zip
+          name: desktop-controller
+          path: dist/remote-control-desktop.jar
           retention-days: 90
 
   # ------------------------------------------------------------- Server
@@ -155,7 +151,7 @@ jobs:
       - name: Download desktop build
         uses: actions/download-artifact@v4
         with:
-          name: desktop-controller-linux
+          name: desktop-controller
           path: release-artifacts/desktop
 
       - name: Create release

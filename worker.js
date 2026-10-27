@@ -2,9 +2,7 @@
 
 const ASSET_MAP = {
   "remote-control-agent-release.apk": "android-agent-release-unsigned.apk",
-  "remote-control-desktop-windows.zip": "desktop-controller-linux.zip",
-  "remote-control-desktop-macos.zip": "desktop-controller-linux.zip",
-  "remote-control-desktop-linux.zip": "desktop-controller-linux.zip",
+  "remote-control-desktop.jar": "remote-control-desktop.jar",
 };
 
 export default {

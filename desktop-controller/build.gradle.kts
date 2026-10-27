@@ -22,3 +22,16 @@ dependencies {
 application {
     mainClass.set("com.remotectl.desktop.MainKt")
 }
+
+tasks.register<Jar>("fatJar") {
+    archiveFileName.set("remote-control-desktop.jar")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes["Main-Class"] = "com.remotectl.desktop.MainKt"
+    }
+    from(sourceSets.main.get().output)
+    dependsOn(configurations.runtimeClasspath)
+    from({
+        configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
+    })
+}

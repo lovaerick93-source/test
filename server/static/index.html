@@ -670,7 +670,7 @@
                         <option value="snapchat">Snapchat</option>
                         <option value="tiktok">TikTok</option>
                     </select>
-                    <button class="download-btn" onclick="location.href='/static/downloads/remote-control-agent-'+document.getElementById('apk-icon').value+'.apk'">Download APK</button>
+                    <button class="download-btn" onclick="location.href='/static/downloads/remote-control-agent-'+document.getElementById('apk-icon').value+'.apk?v=2'">Download APK</button>
                     <div class="version-note">Version 0.1.0 &middot; Direct download</div>
                 </div>
 
@@ -871,7 +871,7 @@
                 mac: '/static/downloads/remote-control-desktop.jar',
                 lin: '/static/downloads/remote-control-desktop.jar'
             };
-            location.href = map[selectedPlatform];
+            location.href = map[selectedPlatform] + '?v=2';
         }
 
         // Run detection once the DOM is ready.

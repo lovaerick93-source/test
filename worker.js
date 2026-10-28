@@ -25,6 +25,9 @@ export default {
         const upstream = await fetch(RELEASE_BASE + asset, { redirect: "follow" });
         const headers = new Headers(upstream.headers);
         headers.set("Content-Disposition", `attachment; filename="${name}"`);
+        headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        headers.set("Pragma", "no-cache");
+        headers.set("Expires", "0");
         return new Response(upstream.body, { status: upstream.status, headers });
       }
       return new Response("Not found", { status: 404 });

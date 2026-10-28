@@ -183,7 +183,8 @@ class HubClient(private val events: HubEvents) {
         val uri = URI(raw)
         val scheme = uri.scheme ?: "ws"
         val host = uri.host ?: throw IllegalArgumentException("enter a hub host or URL")
-        val port = if (uri.port != -1) uri.port else DEFAULT_HUB_PORT
+        val defaultPort = if (scheme == "wss" || scheme == "https") 443 else DEFAULT_HUB_PORT
+        val port = if (uri.port != -1) uri.port else defaultPort
         val path = uri.rawPath?.takeIf { it.isNotBlank() && it != "/" } ?: "/ws"
         val query = uri.rawQuery?.let { "?$it" } ?: ""
         return "$scheme://$host:$port$path$query"

@@ -64,7 +64,7 @@ class AgentConfig(context: Context) {
         val secure = raw.startsWith("wss://")
         val prefix = if (secure) "wss://" else "ws://"
         val authority = raw.removePrefix(prefix).substringBefore('/')
-        val hostPort = if (authority.contains(':')) authority else "$authority:$DEFAULT_PORT"
+        val hostPort = if (authority.contains(':')) authority else if (secure) authority else "$authority:$DEFAULT_PORT"
         return "$prefix$hostPort/ws"
     }
 

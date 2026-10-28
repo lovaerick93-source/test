@@ -30,7 +30,7 @@ class AgentConfig(context: Context) {
 
     /** When true the phone accepts sessions without asking. Off unless opted in. */
     var autoApprove: Boolean
-        get() = prefs.getBoolean(KEY_AUTO_APPROVE, true)
+        get() = prefs.getBoolean(KEY_AUTO_APPROVE, false)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_APPROVE, value).apply()
 
     /** Stable across restarts and reinstalls, so the desktop keeps recognising this phone. */

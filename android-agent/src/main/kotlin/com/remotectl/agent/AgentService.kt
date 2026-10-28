@@ -6,6 +6,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -82,6 +84,8 @@ class AgentService : Service() {
     @Volatile private var canCapture = false
 
     private var mirror: ScreenMirror? = null
+    /** Clipboard manager for get/set sync with the desktop. Initialised on create. */
+    private var clipboard: ClipboardManager? = null
     private val projectionManager by lazy {
         getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
     }
@@ -113,6 +117,18 @@ class AgentService : Service() {
         super.onCreate()
         config = AgentConfig(this)
         statusText = getString(R.string.notification_text_offline)
+        clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager?
+        clipboard?.addPrimaryClipChangedListener {
+            // The phone's own clipboard changed: push it to the desktop.
+            val clip = clipboard?.primaryClip
+            val text = clip?.getItemAt(0)?.text?.toString().orEmpty()
+            if (text.isNotEmpty()) {
+                send(
+                    Msg.EVT_CLIPBOARD,
+                    buildJsonObject { put("text", text) },
+                )
+            }
+        }
         http = OkHttpClient.Builder()
             // The scheme is read per lookup, so editing the saved hub address
             // between http:// and https:// is honoured without a restart.
@@ -367,6 +383,12 @@ class AgentService : Service() {
                     buildJsonObject { put("error", "file_transfer_not_implemented_yet") },
                 )
 
+            Msg.CTL_CLIPBOARD -> {
+                val text = payload.string("text").orEmpty()
+                val ok = if (text.isNotEmpty()) setClipboard(text) else getClipboard()
+                ack(type, ok)
+            }
+
             else -> Log.w(TAG, "unhandled control message: $type")
         }
     }
@@ -619,6 +641,26 @@ class AgentService : Service() {
                 }
             },
         )
+    }
+
+    /** Write text to the phone's clipboard. Returns false when there is no clipboard service. */
+    private fun setClipboard(text: String): Boolean {
+        val c = clipboard ?: return false
+        c.primaryClip = ClipData.newPlainText("remote-control", text)
+        return true
+    }
+
+    /** Send the phone's current clipboard text to the desktop. Returns false when empty or unavailable. */
+    private fun getClipboard(): Boolean {
+        val c = clipboard ?: return false
+        val clip = c.primaryClip
+        val text = clip?.getItemAt(0)?.text?.toString().orEmpty()
+        if (text.isEmpty()) return false
+        send(
+            Msg.EVT_CLIPBOARD,
+            buildJsonObject { put("text", text) },
+        )
+        return true
     }
 
     private fun send(type: String, payload: JsonObject = JsonObject(emptyMap())) {

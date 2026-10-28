@@ -19,6 +19,11 @@ import com.remotectl.protocol.DeviceInfo
  * Everything here is either public device metadata or the launcher-visible app
  * list -- the same list any app drawer shows, and only ever sent to a desktop
  * the owner has approved. No other app's private data is read.
+ *
+ * QUERY_ALL_PACKAGES is deliberately NOT requested because it makes the app
+ * look like a package-harvesting tool to Play Protect. Without it,
+ * queryLaunchableApps() only returns apps visible to the caller on Android 11+,
+ * which is enough for the app drawer to work in practice.
  */
 object DeviceProbe {
 
@@ -52,7 +57,10 @@ object DeviceProbe {
 
     /**
      * Apps that have a launcher entry -- i.e. the ones a remote user could
-     * actually open. One query instead of one lookup per installed package.
+     * actually open. Uses a plain launcher-intent query; on Android 11+ this
+     * only returns apps visible to the caller because QUERY_ALL_PACKAGES is
+     * not declared. That is intentional: it keeps Play Protect from flagging
+     * the app as a package-harvesting tool.
      */
     fun launchableApps(context: Context): List<AppEntry> {
         val now = System.currentTimeMillis()

@@ -71,6 +71,10 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         onSwipe = { x1, y1, x2, y2, durationMs -> sendSwipe(x1, y1, x2, y2, durationMs) },
     )
 
+    private val clipboardField = JTextField(24)
+    private val getClipboardButton = JButton("Get from phone")
+    private val setClipboardButton = JButton("Set on phone")
+
     private var mirrorRunning = false
     private var framesSinceReport = 0
     private var lastFpsReportAt = System.currentTimeMillis()
@@ -180,12 +184,31 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
             addActionListener { requestApps() }
             font = Font("Segoe UI", Font.PLAIN, 12)
         }
+        clipboardField.font = Font("Segoe UI", Font.PLAIN, 12)
+        clipboardField.isEnabled = false
+        getClipboardButton.apply {
+            font = Font("Segoe UI", Font.PLAIN, 11)
+            isEnabled = false
+        }
+        setClipboardButton.apply {
+            font = Font("Segoe UI", Font.PLAIN, 11)
+            isEnabled = false
+        }
+        val clipboardBar = JPanel(BorderLayout(6, 0)).apply {
+            border = BorderFactory.createTitledBorder("Clipboard")
+            add(clipboardField, BorderLayout.CENTER)
+            add(JPanel(GridLayout(1, 2, 4, 0)).apply {
+                add(getClipboardButton)
+                add(setClipboardButton)
+            }, BorderLayout.SOUTH)
+        }
         val right = JPanel(BorderLayout(6, 6)).apply {
             border = BorderFactory.createTitledBorder("Device details")
             preferredSize = Dimension(330, 0)
             add(JScrollPane(infoArea), BorderLayout.NORTH)
             add(JScrollPane(appsList), BorderLayout.CENTER)
             add(appsButton, BorderLayout.SOUTH)
+            add(clipboardBar, BorderLayout.PAGE_END)
         }
 
         mirrorButton.apply {
@@ -256,6 +279,9 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
                 log("asked the phone to open ${entry.label}")
             }
         })
+
+        getClipboardButton.addActionListener { requestClipboard() }
+        setClipboardButton.addActionListener { sendClipboardToPhone() }
     }
 
     // ------------------------------------------------------------------- calls
@@ -314,6 +340,25 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
     private fun sendKey(key: String) {
         if (!hub.send(Msg.CTL_KEY, payloadFrom(KeyCommand(key)))) {
             log("cannot send $key: not paired")
+        }
+    }
+
+    /** Ask the phone to send its current clipboard text. */
+    private fun requestClipboard() {
+        if (!hub.send(Msg.CTL_CLIPBOARD, buildJsonObject { })) {
+            log("cannot get clipboard: not paired")
+        }
+    }
+
+    /** Push the text field's content to the phone's clipboard. */
+    private fun sendClipboardToPhone() {
+        val text = clipboardField.text.trim()
+        if (text.isEmpty()) {
+            log("nothing to send: clipboard field is empty")
+            return
+        }
+        if (!hub.send(Msg.CTL_CLIPBOARD, buildJsonObject { put("text", text) })) {
+            log("cannot set clipboard: not paired")
         }
     }
 
@@ -408,12 +453,19 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
     override fun onPaired(deviceId: String, info: DeviceInfo?) {
         statusLabel.text = "Paired with ${info?.name ?: deviceId}"
         log("paired with $deviceId")
+        clipboardField.isEnabled = true
+        getClipboardButton.isEnabled = true
+        setClipboardButton.isEnabled = true
     }
 
     override fun onPeerGone(reason: String) {
         statusLabel.text = "Session ended: $reason"
         log("session ended: $reason")
         onMirrorStopped("the session ended")
+        clipboardField.isEnabled = false
+        getClipboardButton.isEnabled = false
+        setClipboardButton.isEnabled = false
+        clipboardField.text = ""
     }
 
     override fun onFailed(reason: String) {
@@ -440,6 +492,13 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
             Msg.EVT_SESSION -> log("session: $payload")
             Msg.EVT_MIRROR_STATE -> onMirrorState(payload)
             Msg.EVT_FILE_PROGRESS -> log("file: $payload")
+            Msg.EVT_CLIPBOARD -> {
+                val text = payload.string("text").orEmpty()
+                if (text.isNotEmpty()) {
+                    clipboardField.text = text
+                    log("clipboard from phone: $text")
+                }
+            }
             else -> log("$type $payload")
         }
     }

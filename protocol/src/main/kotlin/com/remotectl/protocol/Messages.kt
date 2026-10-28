@@ -52,6 +52,7 @@ object Msg {
     const val CTL_STOP_MIRROR = "ctl.stop_mirror"
     const val CTL_FILE_PUSH = "ctl.file_push"
     const val CTL_FILE_PULL = "ctl.file_pull"
+    const val CTL_CLIPBOARD = "ctl.clipboard"
 
     // agent -> controller, relayed verbatim by the hub
     const val EVT_APPS = "evt.apps"

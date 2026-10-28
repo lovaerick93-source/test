@@ -99,6 +99,7 @@ class Msg:
     CTL_STOP_MIRROR = "ctl.stop_mirror"
     CTL_FILE_PUSH = "ctl.file_push"
     CTL_FILE_PULL = "ctl.file_pull"
+    CTL_CLIPBOARD = "ctl.clipboard"
 
     # ---- agent -> controller (relayed verbatim)
     EVT_PREFIX = "evt."

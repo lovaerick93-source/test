@@ -24,6 +24,7 @@ from fastapi import WebSocket
 import aiofiles
 
 from models import DeviceInfo, Msg
+from file_transfer import FileTransferManager
 
 # Load environment variables from .env
 load_dotenv()
@@ -102,6 +103,10 @@ class Hub:
             self.FILES_DIR.mkdir(parents=True, exist_ok=True)
         except Exception:
             log.debug("could not create FILES_DIR %s", self.FILES_DIR)
+
+        # File transfer is delegated to a dedicated manager so Hub stays
+        # focused on connections, pairing, and generic relay.
+        self.file_transfer = FileTransferManager(self, self.FILES_DIR)
 
         # Supabase client - prefer service role key, fall back to anon key
         url = os.getenv("SUPABASE_URL")
@@ -474,93 +479,9 @@ class Hub:
     async def _handle_file_push(self, sender: Connection, payload: Dict[str, Any]) -> None:
         """Stream a file from server files/ dir to the paired phone in chunks.
 
-        Before sending raw binary chunks, a JSON "start" envelope is relayed to
-        the peer so it can distinguish file data from video frames. A "done"
-        envelope is sent after the last chunk.
+        Delegated to :class:`FileTransferManager`.
         """
-        peer = self.peer_of(sender)
-        if peer is None:
-            await sender.send(Msg.ERROR, reason="not_paired", original_type=Msg.CTL_FILE_PUSH)
-            return
-        try:
-            filename = payload.get("filename", "unknown")
-            file_id = payload.get("file_id", "file")
-            file_size = payload.get("file_size", 0)
-
-            # Path traversal protection: strip any directory components, then
-            # verify the resolved path stays inside FILES_DIR.
-            safe_name = Path(filename).name
-            filepath = self.FILES_DIR / safe_name
-            try:
-                resolved = filepath.resolve()
-                files_dir_resolved = self.FILES_DIR.resolve()
-                prefix = str(files_dir_resolved) + os.sep
-                if not (str(resolved).startswith(prefix) or resolved == files_dir_resolved):
-                    await sender.send(Msg.ERROR, reason="invalid_filename", file=filename)
-                    return
-            except Exception:
-                await sender.send(Msg.ERROR, reason="invalid_filename", file=filename)
-                return
-
-            if not resolved.exists():
-                await sender.send(Msg.ERROR, reason="file_not_found", file=filename)
-                return
-
-            # Tell the phone a file transfer is starting so it can tell these
-            # binary chunks apart from video frames.
-            await peer.relay_envelope(
-                Msg.CTL_FILE_PUSH,
-                {
-                    "file_id": file_id,
-                    "filename": safe_name,
-                    "file_size": file_size,
-                    "action": "start",
-                },
-            )
-
-            chunk_size = 64 * 1024
-            bytes_sent = 0
-            async with aiofiles.open(resolved, "rb") as f:
-                while True:
-                    chunk = await f.read(chunk_size)
-                    if not chunk:
-                        break
-                    await peer.send_bytes(chunk)
-                    bytes_sent += len(chunk)
-                    progress = (bytes_sent / file_size * 100) if file_size > 0 else 100
-                    await sender.send(Msg.EVT_FILE_PROGRESS, file_id=file_id, filename=safe_name, status="sending", progress=progress, total=file_size, sent=bytes_sent)
-
-            # Tell the phone the transfer is complete.
-            await peer.relay_envelope(
-                Msg.CTL_FILE_PUSH,
-                {
-                    "file_id": file_id,
-                    "filename": safe_name,
-                    "file_size": file_size,
-                    "action": "done",
-                },
-            )
-            await sender.send(Msg.EVT_FILE_PROGRESS, file_id=file_id, filename=safe_name, status="done", progress=100, total=file_size, sent=bytes_sent)
-            log.info("File pushed to device %s: %s (%d bytes)", sender.device_id, safe_name, bytes_sent)
-        except Exception as e:
-            log.error("File push failed: %s", e)
-            await sender.send(Msg.ERROR, reason="file_push_failed", error=str(e))
-
-    async def _handle_file_pull(self, sender: Connection, payload: Dict[str, Any]) -> None:
-        """Send a pull request envelope to the phone with a generated file_id."""
-        peer = self.peer_of(sender)
-        if peer is None:
-            await sender.send(Msg.ERROR, reason="not_paired", original_type=Msg.CTL_FILE_PULL)
-            return
-        try:
-            file_id = payload.get("file_id", secrets.token_hex(8))
-            filename = payload.get("filename", "unknown")
-            await sender.send(Msg.EVT_FILE_PROGRESS, file_id=file_id, filename=filename, status="requesting", progress=0, total=0)
-            await peer.relay_envelope(Msg.CTL_FILE_PULL, {"file_id": file_id, "filename": filename})
-            log.info("File pull requested from device %s: %s", sender.device_id, filename)
-        except Exception as e:
-            log.error("File pull request failed: %s", e)
-            await sender.send(Msg.ERROR, reason="file_pull_failed", error=str(e))
+        await self.file_transfer.handle_file_push(sender, payload)
 
     # ------------------------------------------------------------------ queries
 

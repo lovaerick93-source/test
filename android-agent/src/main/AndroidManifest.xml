@@ -49,7 +49,9 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
-        </receiver> The phone's owner must switch this on by
+        </receiver>
+
+        <!-- The phone's owner must switch this on by
              hand in Settings > Accessibility; the system shows a permanent
              reminder for as long as it is enabled. -->
         <service

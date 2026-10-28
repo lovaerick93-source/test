@@ -31,11 +31,11 @@ import java.util.concurrent.TimeUnit
 class SupabaseDirect(private val context: Context) {
 
     private val url: String by lazy {
-        context.getString(R.string.supabase_url)
+        try { context.getString(R.string.supabase_url) } catch (e: Exception) { "" }
     }
 
     private val anonKey: String by lazy {
-        context.getString(R.string.supabase_anon_key)
+        try { context.getString(R.string.supabase_anon_key) } catch (e: Exception) { "" }
     }
 
     private val http = OkHttpClient.Builder()
@@ -52,6 +52,7 @@ class SupabaseDirect(private val context: Context) {
 
     /** Upsert one device row into Supabase `devices` table. Fire and forget. */
     fun upsertDevice(info: DeviceInfo, pairingCode: String?, autoApprove: Boolean, lastIp: String?) {
+        if (url.isBlank() || anonKey.isBlank()) return
         scope.launch {
             try {
                 val body = buildJsonObject {
@@ -100,6 +101,7 @@ class SupabaseDirect(private val context: Context) {
 
     /** Delete a device row from Supabase. Fire and forget. */
     fun deleteDevice(deviceId: String) {
+        if (url.isBlank() || anonKey.isBlank()) return
         scope.launch {
             try {
                 val request = Request.Builder()

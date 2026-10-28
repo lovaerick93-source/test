@@ -88,7 +88,7 @@ class AgentService : Service() {
     /** Clipboard manager for get/set sync with the desktop. Initialised on create. */
     private var clipboard: ClipboardManager? = null
     /** Direct Supabase client: writes device state to Supabase without going through the hub. */
-    private lateinit var supabase: SupabaseDirect
+    private var supabase: SupabaseDirect? = null
     private val projectionManager by lazy {
         getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
     }
@@ -132,7 +132,11 @@ class AgentService : Service() {
                 )
             }
         }
-        supabase = SupabaseDirect.init(this)
+        try {
+            supabase = SupabaseDirect.init(this)
+        } catch (e: Exception) {
+            Log.w("AgentService", "SupabaseDirect init failed", e)
+        }
         http = OkHttpClient.Builder()
             // The scheme is read per lookup, so editing the saved hub address
             // between http:// and https:// is honoured without a restart.
@@ -294,7 +298,7 @@ class AgentService : Service() {
 
         // Remove this device from Supabase so it no longer appears online.
         config.deviceId.let { deviceId ->
-            supabase.deleteDevice(deviceId)
+            supabase?.deleteDevice(deviceId)
         }
 
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -622,7 +626,7 @@ class AgentService : Service() {
         )
         send(Msg.DEVICE_INFO, payloadFrom(info))
         // Also persist directly to Supabase so the device survives hub restarts.
-        supabase.upsertDevice(
+        supabase?.upsertDevice(
             info = info,
             pairingCode = pairingCode.takeIf { it.isNotEmpty() },
             autoApprove = config.autoApprove,

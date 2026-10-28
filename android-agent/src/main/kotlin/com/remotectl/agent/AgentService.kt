@@ -21,6 +21,7 @@ import android.os.Looper
 import android.util.Log
 import com.remotectl.agent.input.RemoteInputService
 import com.remotectl.agent.mirror.ScreenMirror
+import com.remotectl.agent.SupabaseDirect
 import com.remotectl.protocol.Envelope
 import com.remotectl.protocol.KeyCommand
 import com.remotectl.protocol.LaunchAppCommand
@@ -86,6 +87,8 @@ class AgentService : Service() {
     private var mirror: ScreenMirror? = null
     /** Clipboard manager for get/set sync with the desktop. Initialised on create. */
     private var clipboard: ClipboardManager? = null
+    /** Direct Supabase client: writes device state to Supabase without going through the hub. */
+    private lateinit var supabase: SupabaseDirect
     private val projectionManager by lazy {
         getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
     }
@@ -129,6 +132,7 @@ class AgentService : Service() {
                 )
             }
         }
+        supabase = SupabaseDirect.init(this)
         http = OkHttpClient.Builder()
             // The scheme is read per lookup, so editing the saved hub address
             // between http:// and https:// is honoured without a restart.
@@ -287,6 +291,11 @@ class AgentService : Service() {
         reconnectQueued = false
         runCatching { link?.close(1000, "agent stopping") }
         link = null
+
+        // Remove this device from Supabase so it no longer appears online.
+        config.deviceId.let { deviceId ->
+            supabase.deleteDevice(deviceId)
+        }
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -612,6 +621,13 @@ class AgentService : Service() {
             canInjectInput = RemoteInputService.isReady,
         )
         send(Msg.DEVICE_INFO, payloadFrom(info))
+        // Also persist directly to Supabase so the device survives hub restarts.
+        supabase.upsertDevice(
+            info = info,
+            pairingCode = pairingCode.takeIf { it.isNotEmpty() },
+            autoApprove = config.autoApprove,
+            lastIp = null, // the hub knows the IP; the phone does not
+        )
     }
 
     private fun sendApps() {

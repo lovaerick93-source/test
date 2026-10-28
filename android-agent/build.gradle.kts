@@ -87,4 +87,5 @@ android {
 dependencies {
     implementation(project(":protocol"))
     implementation(libs.okhttp)
+    implementation(libs.kotlinx.coroutines.core)
 }

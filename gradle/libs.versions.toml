@@ -12,6 +12,8 @@ okhttp = "4.12.0"
 javacv = "1.5.14"
 coreKtx = "1.19.1"
 appcompat = "1.8.0"
+supabase-url = "https://edtqfvyezttygragvlww.supabase.co"
+supabase-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdHFmdnllenR0eWdyYWd2bHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5MjAzNTcsImV4cCI6MjEwODQ5NjM1N30.x38tV2vrjY-Pr2Nrun5kxrfiEgnltJ6MFZ9DfJ_2sow"
 material = "1.14.0"
 lifecycle = "2.11.0"
 

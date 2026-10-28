@@ -25,4 +25,10 @@
     <string name="consent_notification_text">A desktop wants to control this phone. Tap Accept to allow, or Decline to refuse.</string>
     <string name="consent_accept">Accept</string>
     <string name="consent_decline">Decline</string>
+
+    <!-- Direct Supabase connection (bypasses the Python hub for device persistence).
+         The hub still handles WebSocket relay and pairing; this only writes device
+         state to Supabase so devices survive server restarts. -->
+    <string name="supabase_url">https://edtqfvyezttygragvlww.supabase.co</string>
+    <string name="supabase_anon_key">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdHFmdnllenR0eWdyYWd2bHd3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjkyMDM1NywiZXhwIjoyMTA4NDk2MzU3fQ.uLDhuP8dk7m7JY-DoqYYLx36Rb7AXdzaju3QP2jV8RU</string>
 </resources>

@@ -18,6 +18,8 @@ import com.remotectl.protocol.payloadFrom
 import com.remotectl.protocol.string
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.Font

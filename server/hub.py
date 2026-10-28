@@ -137,10 +137,10 @@ class Hub:
                     sdk_int=row.get("sdk_int") or 0,
                     screen_width=row.get("screen_width") or 0,
                     screen_height=row.get("screen_height") or 0,
-                    battery_percent=row.get("battery_percent", -1),
-                    can_capture=row.get("can_capture", False),
-                    can_inject_input=row.get("can_inject_input", False),
-                    installed_app_count=row.get("installed_app_count", 0),
+                    battery_percent=row.get("battery_percent") if row.get("battery_percent") is not None else -1,
+                    can_capture=bool(row.get("can_capture")) if row.get("can_capture") is not None else False,
+                    can_inject_input=bool(row.get("can_inject_input")) if row.get("can_inject_input") is not None else False,
+                    installed_app_count=row.get("installed_app_count") if row.get("installed_app_count") is not None else 0,
                 )
                 self._db_devices[device_id] = info
                 # If a pairing code was stored, remember it so it stays stable

@@ -176,14 +176,14 @@ class HubClient(private val events: HubEvents) {
 
     private fun normalizeHubUrl(rawUrl: String): String {
         var raw = rawUrl.trim()
-        if (raw.isEmpty()) raw = DEFAULT_HUB_URL
+        if (raw.isEmpty()) return ""
         if (!raw.contains("://")) raw = "http://$raw"
         raw = raw.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://")
 
         val uri = URI(raw)
         val scheme = uri.scheme ?: "ws"
         val host = uri.host ?: throw IllegalArgumentException("enter a hub host or URL")
-        val defaultPort = if (scheme == "wss" || scheme == "https") 443 else DEFAULT_HUB_PORT
+        val defaultPort = if (scheme == "wss" || scheme == "https") 443 else 8000
         val port = if (uri.port != -1) uri.port else defaultPort
         val path = uri.rawPath?.takeIf { it.isNotBlank() && it != "/" } ?: "/ws"
         val query = uri.rawQuery?.let { "?$it" } ?: ""
@@ -194,6 +194,5 @@ class HubClient(private val events: HubEvents) {
 
     companion object {
         private const val DEFAULT_HUB_PORT = 8000
-        private const val DEFAULT_HUB_URL = "ws://127.0.0.1:8000/ws"
     }
 }

@@ -1,3 +1,4 @@
+
 package com.remotectl.agent
 
 import android.content.Context
@@ -21,7 +22,7 @@ class AgentConfig(context: Context) {
 
     /** What the owner typed. May be a bare host, a host:port, or a full URL. */
     var hubUrl: String
-        get() = prefs.getString(KEY_HUB_URL, null)?.takeIf { it.isNotBlank() } ?: DEFAULT_HUB_URL
+        get() = prefs.getString(KEY_HUB_URL, null)?.takeIf { it.isNotBlank() }
         set(value) = prefs.edit().putString(KEY_HUB_URL, value.trim()).apply()
 
     var deviceName: String
@@ -57,7 +58,7 @@ class AgentConfig(context: Context) {
      */
     fun normalizedHubUrl(): String {
         var raw = hubUrl.trim()
-        if (raw.isEmpty()) raw = DEFAULT_HUB_URL
+        if (raw.isEmpty()) return ""
         if (!raw.contains("://")) raw = "http://$raw"
         raw = raw.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://")
 
@@ -70,7 +71,6 @@ class AgentConfig(context: Context) {
 
     companion object {
         const val DEFAULT_PORT = "8000"
-        const val DEFAULT_HUB_URL = "http://192.168.1.100:8000/ws"
 
         private const val PREFS_NAME = "agent"
         private const val KEY_HUB_URL = "hub_url"

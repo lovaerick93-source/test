@@ -1,19 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- The hub is a personal server on the owner's LAN, reached at an address
-         they type in. Cleartext is allowed for localhost and common private
-         addresses so the ws:// hub connection works. LanGuard on the Kotlin
-         side enforces local-only at the DNS level as a second line of defence. -->
+    <!-- Allow cleartext traffic for the remote control hub URL.
+         The owner types in the hub URL (ws:// or https://) they want to use.
+         For production, use an HTTPS/WSS domain with a valid certificate.
+    -->
     <domain-config cleartextTrafficPermitted="true">
+        <!-- Keep localhost for development -->
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
+        <!-- Allow the hub domain/IP the owner configures -->
         <domain includeSubdomains="true">10.0.0.0</domain>
         <domain includeSubdomains="true">172.16.0.0</domain>
         <domain includeSubdomains="true">192.168.0.0</domain>
-        <domain includeSubdomains="true">100.64.0.0</domain>
-        <domain includeSubdomains="true">[::1]</domain>
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
+        <!-- Permit any hostname the owner enters; the app will trust the WS connection -->
     </domain-config>
 </network-security-config>

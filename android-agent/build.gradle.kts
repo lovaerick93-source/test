@@ -1,9 +1,8 @@
 import java.util.Properties
 
-// AGP 9 compiles Kotlin itself ("built-in Kotlin"), so the kotlin-android
-// plugin is deliberately absent: applying it here is now a hard error.
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -22,8 +21,8 @@ android {
 
     defaultConfig {
         applicationId = "com.remotectl.agent"
-        minSdk = 26
-        targetSdk = 35
+        minSdk = 28
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
     }
@@ -71,16 +70,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // Sources live under src/main/kotlin. With built-in Kotlin the only
-    // supported way to register extra Kotlin directories is via the source
-    // set's kotlin set, so it is declared explicitly here.
+    // Sources live under src/main/kotlin instead of the Java default.
     sourceSets.getByName("main") {
         kotlin.directories += "src/main/kotlin"
     }
 }
 
-// No kotlin { compilerOptions { jvmTarget } } block: built-in Kotlin already
-// defaults jvmTarget to android.compileOptions.targetCompatibility (17).
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
 
 // Deliberately no AndroidX: this app is plain framework views and services, so
 // pulling in appcompat/material/lifecycle would only slow the build down.

@@ -60,6 +60,7 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
     private val deviceModel = DefaultListModel<DeviceView>()
     private val deviceList = JList(deviceModel)
     private val pairButton = JButton("Connect")
+    private val pairingCodeField = JTextField(8)
 
     private val infoArea = JTextArea(8, 34)
     private val appsModel = DefaultListModel<String>()
@@ -94,6 +95,8 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         add(buildLog(), BorderLayout.SOUTH)
 
         wireActions()
+        pairButton.isEnabled = false
+        pairingCodeField.isEnabled = false
         minimumSize = Dimension(1180, 760)
         pack()
         setLocationRelativeTo(null)
@@ -158,6 +161,13 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         }
         val pairing = JPanel(BorderLayout(6, 6)).apply {
             border = BorderFactory.createTitledBorder("Selected phone")
+            add(JPanel(BorderLayout(4, 0)).apply {
+                add(JLabel("Pairing code:"), BorderLayout.WEST)
+                add(pairingCodeField.apply {
+                    font = Font("Consolas", Font.PLAIN, 12)
+                    toolTipText = "Enter the 6-digit code shown on the phone, or leave blank for auto-approve devices."
+                }, BorderLayout.CENTER)
+            }, BorderLayout.NORTH)
             add(connectBtn, BorderLayout.CENTER)
         }
 
@@ -204,13 +214,16 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
                 add(setClipboardButton)
             }, BorderLayout.SOUTH)
         }
+        val rightBottom = JPanel(BorderLayout(6, 6)).apply {
+            add(appsButton, BorderLayout.NORTH)
+            add(clipboardBar, BorderLayout.CENTER)
+        }
         val right = JPanel(BorderLayout(6, 6)).apply {
             border = BorderFactory.createTitledBorder("Device details")
             preferredSize = Dimension(330, 0)
             add(JScrollPane(infoArea), BorderLayout.NORTH)
             add(JScrollPane(appsList), BorderLayout.CENTER)
-            add(appsButton, BorderLayout.SOUTH)
-            add(clipboardBar, BorderLayout.PAGE_END)
+            add(rightBottom, BorderLayout.SOUTH)
         }
 
         mirrorButton.apply {
@@ -292,9 +305,11 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         if (view == null) {
             infoArea.text = ""
             pairButton.isEnabled = false
+            pairingCodeField.isEnabled = false
             return
         }
         pairButton.isEnabled = true
+        pairingCodeField.isEnabled = true
         infoArea.text = describe(view)
     }
 
@@ -323,7 +338,8 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
             log("pick a phone first")
             return
         }
-        if (hub.requestConnection(view.deviceId, "")) {
+        val pairingCode = pairingCodeField.text.trim()
+        if (hub.requestConnection(view.deviceId, pairingCode)) {
             log("connecting to ${view.displayName}…")
         } else {
             log("cannot connect: the hub link is down")
@@ -458,6 +474,7 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
         clipboardField.isEnabled = true
         getClipboardButton.isEnabled = true
         setClipboardButton.isEnabled = true
+        pairingCodeField.text = ""
     }
 
     override fun onPeerGone(reason: String) {
@@ -472,7 +489,11 @@ class ControllerFrame : JFrame("Remote Control — desktop"), HubEvents {
 
     override fun onFailed(reason: String) {
         statusLabel.text = "Hub refused: $reason"
-        log("hub refused: $reason")
+        val detail = when (reason) {
+            "bad_pairing_code" -> "hub refused: bad_pairing_code (enter the 6-digit code shown on the phone, unless that phone uses auto-approve)"
+            else -> "hub refused: $reason"
+        }
+        log(detail)
     }
 
     override fun onRelay(type: String, payload: JsonObject) {

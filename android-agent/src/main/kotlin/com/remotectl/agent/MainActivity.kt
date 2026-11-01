@@ -151,7 +151,7 @@ class MainActivity : Activity() {
         root.addView(sectionLabel("Hub address (your computer)"))
         urlField = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-            hint = AgentConfig.DEFAULT_HUB_URL
+            hint = "192.168.1.5:${AgentConfig.DEFAULT_PORT}"
             setText(config.hubUrl)
         }
         root.addView(urlField)

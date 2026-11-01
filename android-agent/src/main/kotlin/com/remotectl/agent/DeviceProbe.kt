@@ -101,7 +101,7 @@ object DeviceProbe {
     private fun screenSize(context: Context): Pair<Int, Int> {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val bounds = wm.currentWindowMetrics.bounds
+            val bounds = wm.maximumWindowMetrics.bounds
             bounds.width() to bounds.height()
         } else {
             val metrics = DisplayMetrics()

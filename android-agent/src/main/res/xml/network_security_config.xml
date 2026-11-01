@@ -1,17 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext traffic for the remote control hub URL.
-         The owner types in the hub URL (ws:// or https://) they want to use.
-         For production, use an HTTPS/WSS domain with a valid certificate.
-    -->
-    <domain-config cleartextTrafficPermitted="true">
-        <!-- Keep localhost for development -->
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-        <!-- Allow the hub domain/IP the owner configures -->
-        <domain includeSubdomains="true">10.0.0.0</domain>
-        <domain includeSubdomains="true">172.16.0.0</domain>
-        <domain includeSubdomains="true">192.168.0.0</domain>
-        <!-- Permit any hostname the owner enters; the app will trust the WS connection -->
-    </domain-config>
+    <!-- Android can only toggle cleartext at manifest / domain granularity, not
+         by resolved IP range. LanGuard.kt applies the real policy at runtime:
+         ws:// is allowed only when the hub resolves to a local-network address;
+         any public host must use wss://. -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

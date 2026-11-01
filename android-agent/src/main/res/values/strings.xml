@@ -30,5 +30,5 @@
          The hub still handles WebSocket relay and pairing; this only writes device
          state to Supabase so devices survive server restarts. -->
     <string name="supabase_url">https://edtqfvyezttygragvlww.supabase.co</string>
-    <string name="supabase_anon_key">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdHFmdnllenR0eWdyYWd2bHd3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjkyMDM1NywiZXhwIjoyMTA4NDk2MzU3fQ.uLDhuP8dk7m7JY-DoqYYLx36Rb7AXdzaju3QP2jV8RU</string>
+    <string name="supabase_anon_key">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdHFmdnllenR0eWdyYWd2bHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5MjAzNTcsImV4cCI6MjEwODQ5NjM1N30.x38tV2vrjY-Pr2Nrun5kxrfiEgnltJ6MFZ9DfJ_2sow</string>
 </resources>

@@ -176,7 +176,7 @@ class HubClient(private val events: HubEvents) {
 
     private fun normalizeHubUrl(rawUrl: String): String {
         var raw = rawUrl.trim()
-        if (raw.isEmpty()) return ""
+        if (raw.isEmpty()) throw IllegalArgumentException("enter a hub host or URL")
         if (!raw.contains("://")) raw = "http://$raw"
         raw = raw.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://")
 

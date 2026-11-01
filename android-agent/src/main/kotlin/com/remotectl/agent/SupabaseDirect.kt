@@ -10,10 +10,12 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 /**
@@ -71,11 +73,11 @@ class SupabaseDirect(private val context: Context) {
                     put("pairing_code", pairingCode)
                     put("auto_approve", autoApprove)
                     put("last_ip", lastIp)
-                    put("last_seen", System.currentTimeMillis().toString())
+                    put("last_seen", Instant.now().toString())
                 }
                 val requestBody = RequestBody.Companion.create(
+                    "application/json; charset=utf-8".toMediaType(),
                     json.encodeToJsonElement(body).toString(),
-                    "application/json; charset=utf-8".toMediaType()
                 )
                 val request = Request.Builder()
                     .url("$url/rest/v1/devices")
@@ -126,8 +128,7 @@ class SupabaseDirect(private val context: Context) {
 
     fun close() {
         job.cancel()
-        scope.cancel()
-        http.connectionPool().evictAll()
+        http.connectionPool.evictAll()
     }
 
     companion object {

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
 import android.provider.Settings
+import java.net.URI
 
 /**
  * Everything the agent remembers between launches: where the hub lives, who
@@ -22,7 +23,7 @@ class AgentConfig(context: Context) {
 
     /** What the owner typed. May be a bare host, a host:port, or a full URL. */
     var hubUrl: String
-        get() = prefs.getString(KEY_HUB_URL, null)?.takeIf { it.isNotBlank() }
+        get() = prefs.getString(KEY_HUB_URL, "")?.trim().orEmpty()
         set(value) = prefs.edit().putString(KEY_HUB_URL, value.trim()).apply()
 
     var deviceName: String
@@ -31,7 +32,7 @@ class AgentConfig(context: Context) {
 
     /** When true the phone accepts sessions without asking. Off unless opted in. */
     var autoApprove: Boolean
-        get() = prefs.getBoolean(KEY_AUTO_APPROVE, true)
+        get() = prefs.getBoolean(KEY_AUTO_APPROVE, false)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_APPROVE, value).apply()
 
     /** Stable across restarts and reinstalls, so the desktop keeps recognising this phone. */
@@ -61,12 +62,16 @@ class AgentConfig(context: Context) {
         if (raw.isEmpty()) return ""
         if (!raw.contains("://")) raw = "http://$raw"
         raw = raw.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://")
-
-        val secure = raw.startsWith("wss://")
-        val prefix = if (secure) "wss://" else "ws://"
-        val authority = raw.removePrefix(prefix).substringBefore('/')
-        val hostPort = if (authority.contains(':')) authority else if (secure) authority else "$authority:$DEFAULT_PORT"
-        return "$prefix$hostPort/ws"
+        return runCatching {
+            val uri = URI(raw)
+            val scheme = uri.scheme ?: "ws"
+            val host = uri.host ?: return ""
+            val defaultPort = if (scheme == "wss") 443 else DEFAULT_PORT.toInt()
+            val port = if (uri.port != -1) uri.port else defaultPort
+            val path = uri.rawPath?.takeIf { it.isNotBlank() && it != "/" } ?: "/ws"
+            val query = uri.rawQuery?.let { "?$it" } ?: ""
+            "$scheme://$host:$port$path$query"
+        }.getOrDefault("")
     }
 
     companion object {

@@ -37,7 +37,8 @@ javacv = { module = "org.bytedeco:javacv", version.ref = "javacv" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-# No kotlin-android entry: AGP 9 has built-in Kotlin, and applying the old
-# org.jetbrains.kotlin.android plugin is now a build error.
+# Android still uses AGP 8.x in this repo, so the Android Kotlin plugin is
+# required for the agent sources to compile into the APK.
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

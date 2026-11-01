@@ -24,8 +24,8 @@ from __future__ import annotations
 import json
 import logging
 import time
-import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -37,6 +37,9 @@ from models import PROTOCOL_VERSION, DeviceInfo, Hello, Msg
 
 log = logging.getLogger("hub")
 hub = Hub()
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+DOWNLOADS_DIR = STATIC_DIR / "downloads"
 
 
 @asynccontextmanager
@@ -52,18 +55,17 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Remote Control Hub", version="0.1.0", lifespan=lifespan)
 
-# Mount the downloads folder so users can download the APK and Desktop app
-# Files should be placed in server/static/downloads/
-if not os.path.exists("static/downloads"):
-    os.makedirs("static/downloads", exist_ok=True)
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Mount the downloads folder so users can download the APK and Desktop app.
+# Resolve paths from this file so the hub works no matter which directory
+# launched uvicorn from.
+DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/")
 async def root():
     # Serve the download page by default
-    index_path = os.path.join("static", "index.html")
-    if os.path.exists(index_path):
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
         return FileResponse(index_path)
     
     return {

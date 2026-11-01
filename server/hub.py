@@ -26,8 +26,9 @@ import aiofiles
 from models import DeviceInfo, Msg
 from file_transfer import FileTransferManager
 
-# Load environment variables from .env
-load_dotenv()
+# Load environment variables from server/.env even when the process starts from
+# the repository root or a service manager with a different working directory.
+load_dotenv(Path(__file__).with_name(".env"))
 
 log = logging.getLogger("hub")
 
@@ -180,6 +181,8 @@ class Hub:
             await asyncio.to_thread(
                 lambda: self.supabase.table("devices").upsert(data).execute()
             )
+            if info is not None:
+                self._db_devices[conn.device_id] = info
         except Exception as e:
             log.error("failed to upsert device %s in Supabase: %s", conn.device_id, e)
 
@@ -482,6 +485,10 @@ class Hub:
         Delegated to :class:`FileTransferManager`.
         """
         await self.file_transfer.handle_file_push(sender, payload)
+
+    async def _handle_file_pull(self, sender: Connection, payload: Dict[str, Any]) -> None:
+        """Forward a controller pull request to the file transfer manager."""
+        await self.file_transfer.handle_file_pull(sender, payload)
 
     # ------------------------------------------------------------------ queries
 

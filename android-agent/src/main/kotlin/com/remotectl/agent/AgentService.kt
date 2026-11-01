@@ -198,14 +198,29 @@ class AgentService : Service() {
 
     private fun startLink() {
         if (link != null) return
+        val hubUrl = config.normalizedHubUrl()
+        if (hubUrl.isBlank()) {
+            failStart(getString(R.string.notification_text_offline), "enter a valid hub address first")
+            return
+        }
         AgentStatus.running = true
-        AgentStatus.hub = config.normalizedHubUrl()
+        AgentStatus.hub = hubUrl
         updateStatus(getString(R.string.notification_text_offline))
-        openSocket()
+        openSocket(hubUrl)
     }
 
-    private fun openSocket() {
-        val request = Request.Builder().url(config.normalizedHubUrl()).build()
+    private fun openSocket(url: String = config.normalizedHubUrl()) {
+        if (url.isBlank()) {
+            failStart(getString(R.string.notification_text_offline), "enter a valid hub address first")
+            return
+        }
+        val request = runCatching { Request.Builder().url(url).build() }
+            .onFailure { Log.w(TAG, "invalid hub url: $url", it) }
+            .getOrNull()
+        if (request == null) {
+            failStart(getString(R.string.notification_text_offline), "invalid hub address: $url")
+            return
+        }
         link = http.newWebSocket(request, listener)
     }
 
@@ -279,6 +294,17 @@ class AgentService : Service() {
         }, delayMs)
     }
 
+    private fun failStart(status: String, detail: String) {
+        AgentStatus.running = false
+        AgentStatus.connected = false
+        AgentStatus.paired = false
+        AgentStatus.lastMessage = detail
+        AgentStatus.hub = config.normalizedHubUrl()
+        updateStatus(status)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     private fun stopAgent() {
         stopMirror("agent_stopped")
         AgentStatus.running = false
@@ -295,11 +321,6 @@ class AgentService : Service() {
         reconnectQueued = false
         runCatching { link?.close(1000, "agent stopping") }
         link = null
-
-        // Remove this device from Supabase so it no longer appears online.
-        config.deviceId.let { deviceId ->
-            supabase?.deleteDevice(deviceId)
-        }
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -666,7 +687,7 @@ class AgentService : Service() {
     /** Write text to the phone's clipboard. Returns false when there is no clipboard service. */
     private fun setClipboard(text: String): Boolean {
         val c = clipboard ?: return false
-        c.primaryClip = ClipData.newPlainText("remote-control", text)
+        c.setPrimaryClip(ClipData.newPlainText("remote-control", text))
         return true
     }
 

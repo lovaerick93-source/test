@@ -110,6 +110,12 @@ class MirrorPanel(
         if (sourceWidth <= 0 || sourceHeight <= 0) return null
         val fit = fit()
         if (fit.width <= 0f || fit.height <= 0f) return null
+        if (
+            point.x < fit.offsetX || point.x > fit.offsetX + fit.width ||
+            point.y < fit.offsetY || point.y > fit.offsetY + fit.height
+        ) {
+            return null
+        }
         val deviceX = (point.x - fit.offsetX) / fit.width * sourceWidth
         val deviceY = (point.y - fit.offsetY) / fit.height * sourceHeight
         return Point(

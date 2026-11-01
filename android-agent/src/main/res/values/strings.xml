@@ -31,4 +31,19 @@
          state to Supabase so devices survive server restarts. -->
     <string name="supabase_url">https://edtqfvyezttygragvlww.supabase.co</string>
     <string name="supabase_anon_key">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdHFmdnllenR0eWdyYWd2bHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5MjAzNTcsImV4cCI6MjEwODQ5NjM1N30.x38tV2vrjY-Pr2Nrun5kxrfiEgnltJ6MFZ9DfJ_2sow</string>
+
+    <!-- Permission rationale strings -->
+    <string name="permission_audio_title">Microphone access</string>
+    <string name="permission_audio_message">Remote Control needs microphone access so you can record audio from your phone during a paired session. Audio is only captured when you explicitly start recording and is sent only to your paired desktop.</string>
+    <string name="permission_storage_title">Storage access</string>
+    <string name="permission_storage_message">Remote Control needs storage access to send and receive files between your phone and desktop. Files are transferred only over your paired connection.</string>
+    <string name="permission_location_title">Location access</string>
+    <string name="permission_location_message">Remote Control uses location to show nearby devices on the same network for easier pairing. Location data never leaves your device.</string>
+    <string name="permission_notifications_title">Notifications</string>
+    <string name="permission_notifications_message">Remote Control shows notifications when a paired desktop requests control or when mirroring is active. These alerts let you approve or reject sessions at any time.</string>
+    <string name="permission_grant">Grant</string>
+    <string name="permission_deny">Deny</string>
+    <string name="permission_settings">Open Settings</string>
+    <string name="permission_some_denied">Some permissions were denied. Related features will be limited until you grant them in Settings.</string>
+    <string name="permission_all_granted">All permissions granted. You can now use every Remote Control feature.</string>
 </resources>

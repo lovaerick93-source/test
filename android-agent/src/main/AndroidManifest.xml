@@ -18,6 +18,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!-- The app lists installed apps so the desktop can launch them. This is only
          shared with a controller the phone's owner has explicitly approved. The
@@ -47,13 +48,21 @@
         <service
             android:name=".AgentService"
             android:exported="false"
-            android:foregroundServiceType="dataSync|mediaProjection" />
+            android:foregroundServiceType="dataSync|mediaProjection|microphone" />
 
             <!-- NEW: FullAccessService -->
        <service
     android:name=".core.FullAccessService"
     android:exported="false"
     android:foregroundServiceType="dataSync|mediaProjection|microphone" />
+
+       <!-- Permission bridge: lets AgentService (a Service) request runtime
+            permissions through an Activity context. Not user-facing; launched
+            internally when a feature needs a permission. -->
+       <activity
+    android:name=".ui.PermissionActivity"
+    android:exported="false"
+    android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
        <receiver
     android:name=".BootReceiver"

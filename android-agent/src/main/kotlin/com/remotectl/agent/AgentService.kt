@@ -21,8 +21,11 @@ import android.os.Looper
 import android.util.Log
 import com.remotectl.agent.core.AccessManager
 import com.remotectl.agent.core.CaptureDataHolder
+import com.remotectl.agent.core.PermissionManager
+import com.remotectl.agent.core.PermissionResultHolder
 import com.remotectl.agent.input.RemoteInputService
 import com.remotectl.agent.mirror.ScreenMirror
+import com.remotectl.agent.ui.PermissionActivity
 import com.remotectl.agent.SupabaseDirect
 import com.remotectl.protocol.Envelope
 import com.remotectl.protocol.KeyCommand
@@ -440,9 +443,9 @@ class AgentService : Service() {
             }
 
          // New way: Delegate to FullAccessService via Manager
-Msg.CTL_START_MIRROR -> AccessManager.startMirror(this)
+Msg.CTL_START_MIRROR -> startMirroringWithPermissionCheck()
 Msg.CTL_STOP_MIRROR -> AccessManager.stopMirror()
-            Msg.CTL_RECORD_AUDIO -> AccessManager.startAudioRecording(this)
+            Msg.CTL_RECORD_AUDIO -> startAudioWithPermissionCheck()
             Msg.CTL_STOP_AUDIO -> AccessManager.stopAudioRecording()
 
             Msg.CTL_FILE_PUSH, Msg.CTL_FILE_PULL ->
@@ -459,6 +462,62 @@ Msg.CTL_STOP_MIRROR -> AccessManager.stopMirror()
 
             else -> Log.w(TAG, "unhandled control message: $type")
         }
+    }
+
+    /**
+     * Starts mirroring only after confirming runtime permissions.
+     * Asks contextually (not on launch) so the first permission prompt
+     * appears when the user actually tries a feature.
+     */
+    private fun startMirroringWithPermissionCheck() {
+        if (PermissionManager.isAllGranted(this)) {
+            Log.i(TAG, "All permissions granted. Starting mirror…")
+            AccessManager.startMirror(this)
+            return
+        }
+
+        // Register callback so PermissionActivity can report back.
+        PermissionResultHolder.callback = { granted ->
+            if (granted) {
+                Log.i(TAG, "Permissions granted after request. Starting mirror…")
+                AccessManager.startMirror(this@AgentService)
+            } else {
+                Log.w(TAG, "Some permissions denied. Mirroring limited.")
+                send(
+                    Msg.EVT_MIRROR_STATE,
+                    buildJsonObject {
+                        put("running", false)
+                        put("error", "permissions_denied")
+                        put("detail", "Grant permissions in Settings to enable mirroring")
+                    },
+                )
+            }
+        }
+
+        PermissionActivity.startFrom(this@AgentService)
+    }
+
+    /**
+     * Starts audio recording only after confirming RECORD_AUDIO permission.
+     */
+    private fun startAudioWithPermissionCheck() {
+        val perm = android.Manifest.permission.RECORD_AUDIO
+        if (PermissionManager.isGranted(this, perm)) {
+            Log.i(TAG, "Audio permission already granted. Starting recording…")
+            AccessManager.startAudioRecording(this)
+            return
+        }
+
+        PermissionResultHolder.callback = { granted ->
+            if (granted) {
+                Log.i(TAG, "Audio permission granted. Starting recording…")
+                AccessManager.startAudioRecording(this@AgentService)
+            } else {
+                Log.w(TAG, "Audio permission denied.")
+            }
+        }
+
+        PermissionActivity.startFrom(this@AgentService)
     }
 
     // ----------------------------------------------------------------- mirror

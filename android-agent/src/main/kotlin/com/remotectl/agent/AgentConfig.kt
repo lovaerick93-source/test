@@ -47,6 +47,10 @@ class AgentConfig(context: Context) {
             return generated
         }
 
+    /** The app's package name, used by reboot/kill commands. */
+    val packageName: String
+        get() = appContext.packageName
+
     /** The code the hub handed back, kept only so the UI can redisplay it. */
     var lastPairingCode: String
         get() = prefs.getString(KEY_LAST_CODE, "") ?: ""

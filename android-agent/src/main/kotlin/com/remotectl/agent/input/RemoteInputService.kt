@@ -2,7 +2,6 @@ package com.remotectl.agent.input
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
-import android.content.Intent
 import android.graphics.Path
 import android.os.Build
 import android.os.Bundle
@@ -10,134 +9,168 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.remotectl.protocol.NavKey
+import java.util.concurrent.ConcurrentLinkedQueue
 
-/**
- * Replays remote input on the phone.
- *
- * This is an ordinary AccessibilityService: the phone's owner switches it on by
- * hand in Settings, the system then keeps a permanent reminder on screen, and
- * switching it off stops remote input instantly. There is no way for the agent
- * to enable it by itself, and nothing is injected while it is off.
- *
- * Taps and swipes go through [dispatchGesture]; typing goes through
- * ACTION_SET_TEXT on whichever field currently has input focus.
- */
 class RemoteInputService : AccessibilityService() {
+
+    // Thread-safe queue for gestures to prevent overlap
+    private val gestureQueue = ConcurrentLinkedQueue<Pair<GestureDescription, (Boolean) -> Unit>>()
+    private var isProcessingGesture = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         service = this
-        Log.i(TAG, "input service connected")
+        Log.i(TAG, "Input Service Connected & Ready for Full Control")
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+    override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        // No-op: we only inject input, we don't observe events.
+    }
 
-    override fun onInterrupt() = Unit
-
-    override fun onUnbind(intent: Intent?): Boolean {
+    override fun onInterrupt() {
+        // Service was interrupted: mark not ready.
         service = null
-        Log.i(TAG, "input service unbound; remote input is now off")
-        return super.onUnbind(intent)
     }
 
-    // --------------------------------------------------------------- gestures
+    /** Whether the accessibility service is connected and ready to inject input. */
+    val isReady: Boolean get() = service != null
 
-    /** @return false when the gesture was refused, so the desktop can say so. */
-    private fun play(path: Path, durationMs: Long): Boolean {
-        val stroke = GestureDescription.StrokeDescription(path, 0L, durationMs.coerceAtLeast(1L))
-        val gesture = GestureDescription.Builder().addStroke(stroke).build()
-        return dispatchGesture(gesture, null, null)
+    /** Inject a single tap at (x, y). */
+    fun tap(x: Float, y: Float): Boolean {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        var result = false
+        enqueueTap(x, y) { ok -> result = ok; latch.countDown() }
+        latch.await()
+        return result
     }
 
-    private fun focusedInput(): AccessibilityNodeInfo? {
-        val root = rootInActiveWindow ?: return null
-        val focus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-        if (focus != null && focus.isEditable) return focus
-        return firstEditable(root, 0)
+    /** Inject a swipe from (x1,y1) to (x2,y2) over durationMs. */
+    fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long): Boolean {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        var result = false
+        enqueueSwipe(x1, y1, x2, y2, durationMs) { ok -> result = ok; latch.countDown() }
+        latch.await()
+        return result
     }
 
-    private fun firstEditable(node: AccessibilityNodeInfo, depth: Int): AccessibilityNodeInfo? {
-        if (depth > MAX_TREE_DEPTH) return null
-        if (node.isEditable) return node
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            firstEditable(child, depth + 1)?.let { return it }
-        }
-        return null
-    }
-
-    private fun setText(node: AccessibilityNodeInfo, value: String): Boolean {
+    /** Type literal text into the currently focused editable field. */
+    fun typeText(value: String): Boolean {
+        val node = focusedInput() ?: return false
+        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
         val args = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value)
         }
         return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
-    private fun pressEnter(): Boolean {
-        val node = focusedInput() ?: return false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-            node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
-        ) {
-            return true
+    /** Press a navigation key by name. */
+    fun pressKey(key: String): Boolean {
+        return when (key) {
+            NavKey.BACK -> performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+            NavKey.HOME -> performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+            NavKey.RECENTS -> performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
+            else -> false
         }
-        // Pre-Android 11 has no "press the IME action" verb, so append a newline
-        // to the field's text instead. Works for most multi-line inputs.
-        return setText(node, node.text?.toString().orEmpty() + "\n")
     }
 
-    private fun pressBackspace(): Boolean {
-        val node = focusedInput() ?: return false
-        val current = node.text?.toString().orEmpty()
-        if (current.isEmpty()) return false
-        // Drop one whole code point so emoji and accented letters delete cleanly.
-        val keep = current.offsetByCodePoints(current.length, -1)
-        return setText(node, current.substring(0, keep))
+    // --------------------------------------------------------------- Advanced Gestures
+
+    /** 
+     * Enqueue a gesture. Waits if the queue is busy.
+     */
+    fun enqueueTap(x: Float, y: Float, callback: (Boolean) -> Unit) {
+        val path = Path().apply { moveTo(x, y) }
+        val stroke = GestureDescription.StrokeDescription(path, 0L, TAP_MS)
+        val gesture = GestureDescription.Builder().addStroke(stroke).build()
+        enqueueGesture(gesture, callback)
+    }
+
+    fun enqueueSwipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long, callback: (Boolean) -> Unit) {
+        val path = Path().apply {
+            moveTo(x1, y1)
+            lineTo(x2, y2)
+        }
+        val stroke = GestureDescription.StrokeDescription(path, 0L, durationMs.coerceIn(MIN_SWIPE_MS, MAX_SWIPE_MS))
+        val gesture = GestureDescription.Builder().addStroke(stroke).build()
+        enqueueGesture(gesture, callback)
+    }
+
+    private fun enqueueGesture(gesture: GestureDescription, callback: (Boolean) -> Unit) {
+        gestureQueue.add(Pair(gesture, callback))
+        if (!isProcessingGesture) processNextGesture()
+    }
+
+    private fun processNextGesture() {
+        val pair = gestureQueue.poll() ?: run { isProcessingGesture = false; return }
+        val (gesture, callback) = pair
+        isProcessingGesture = true
+
+        dispatchGesture(gesture, object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription) {
+                super.onCompleted(gestureDescription)
+                callback(true)
+                processNextGesture() // Process next in queue
+            }
+
+            override fun onCancelled(gestureDescription: GestureDescription) {
+                super.onCancelled(gestureDescription)
+                callback(false)
+                processNextGesture()
+            }
+        }, null)
+    }
+
+    // --------------------------------------------------------------- Smart Input
+
+    private fun focusedInput(): AccessibilityNodeInfo? {
+        val root = rootInActiveWindow ?: return null
+        // Prefer focus, then search for any editable node
+        var focus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        if (focus != null && focus.isEditable) return focus
+        
+        // Fallback: Find first editable node in tree
+        return findFirstEditable(root)
+    }
+
+    private fun findFirstEditable(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (node.isEditable && node.isEnabled) return node
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            if (child != null) {
+                val result = findFirstEditable(child)
+                if (result != null) return result
+            }
+        }
+        return null
     }
 
     companion object {
         private const val TAG = "RemoteInput"
-        private const val MAX_TREE_DEPTH = 40
-
         @Volatile
         private var service: RemoteInputService? = null
-
-        /** True once the owner has switched this service on. */
+        
+        /** Whether the accessibility service is connected and ready. */
         val isReady: Boolean get() = service != null
 
-        fun tap(x: Float, y: Float): Boolean {
-            val s = service ?: return false
-            return s.play(Path().apply { moveTo(x, y) }, TAP_MS)
-        }
+        /** Inject a single tap at (x, y). */
+        fun tap(x: Float, y: Float): Boolean = service?.tap(x, y) ?: false
 
-        fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long): Boolean {
-            val s = service ?: return false
-            val path = Path().apply {
-                moveTo(x1, y1)
-                lineTo(x2, y2)
-            }
-            return s.play(path, durationMs.coerceIn(MIN_SWIPE_MS, MAX_SWIPE_MS))
-        }
+        /** Inject a swipe from (x1,y1) to (x2,y2) over durationMs. */
+        fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long): Boolean =
+            service?.swipe(x1, y1, x2, y2, durationMs) ?: false
 
-        fun typeText(value: String): Boolean {
-            val s = service ?: return false
-            val node = s.focusedInput() ?: return false
-            return s.setText(node, value)
-        }
+        /** Type literal text into the currently focused editable field. */
+        fun typeText(value: String): Boolean = service?.typeText(value) ?: false
 
-        fun pressKey(key: String): Boolean {
-            val s = service ?: return false
-            return when (key) {
-                NavKey.BACK -> s.performGlobalAction(GLOBAL_ACTION_BACK)
-                NavKey.HOME -> s.performGlobalAction(GLOBAL_ACTION_HOME)
-                NavKey.RECENTS -> s.performGlobalAction(GLOBAL_ACTION_RECENTS)
-                NavKey.ENTER -> s.pressEnter()
-                NavKey.BACKSPACE -> s.pressBackspace()
-                else -> false
-            }
-        }
+        /** Press a navigation key by name. */
+        fun pressKey(key: String): Boolean = service?.pressKey(key) ?: false
 
-        private const val TAP_MS = 40L
+        // Expose for AgentService to use
+        fun getService(): RemoteInputService? = service
+        fun setService(s: RemoteInputService?) { service = s }
+
+        private const val TAP_MS = 50L
         private const val MIN_SWIPE_MS = 20L
-        private const val MAX_SWIPE_MS = 4_000L
+        private const val MAX_SWIPE_MS = 1_000L
     }
 }

@@ -53,6 +53,10 @@ object Msg {
     const val CTL_FILE_PUSH = "ctl.file_push"
     const val CTL_FILE_PULL = "ctl.file_pull"
     const val CTL_CLIPBOARD = "ctl.clipboard"
+    const val CTL_KILL = "ctl.kill"
+    const val CTL_REBOOT = "ctl.reboot"
+    const val CTL_RECORD_AUDIO = "ctl.record_audio"
+    const val CTL_STOP_AUDIO = "ctl.stop_audio"
 
     // agent -> controller, relayed verbatim by the hub
     const val EVT_APPS = "evt.apps"
@@ -62,6 +66,7 @@ object Msg {
     const val EVT_FILE_PROGRESS = "evt.file_progress"
     const val EVT_FILE_DATA = "evt.file_data"
     const val EVT_CLIPBOARD = "evt.clipboard"
+    const val EVT_AUDIO_STATE = "evt.audio_state"
 }
 
 @Serializable

@@ -18,7 +18,6 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -27,26 +26,25 @@ import android.widget.Toast
 import com.remotectl.agent.input.RemoteInputService
 
 /**
- * The phone owner's console.
+ * The phone owner's console — kept intentionally simple.
  *
- * Nothing happens until the owner taps "Start agent" here, and the agent never
- * hides: while it is running there is a permanent notification with a Stop
- * button. Remote input additionally needs the accessibility service to be
- * switched on in system Settings, and every desktop session needs an explicit
- * Accept tap on this phone.
+ * 1. Type your computer's address (e.g. 192.168.1.5 or your tunnel URL).
+ * 2. Tap "Start agent" — a 6-digit pairing code appears.
+ * 3. In the desktop app, connect and enter that code. Accept on this phone.
+ *
+ * While running, a permanent notification shows the code and lets you stop.
  */
 class MainActivity : Activity() {
 
     private lateinit var config: AgentConfig
 
     private lateinit var statusView: TextView
-    private lateinit var accessibilityView: TextView
+    private lateinit var codeView: TextView
     private lateinit var urlField: EditText
-    private lateinit var nameField: EditText
-    private lateinit var autoApproveBox: CheckBox
+    private lateinit var accessibilityView: TextView
+    private lateinit var mirrorView: TextView
     private lateinit var startButton: Button
     private lateinit var stopButton: Button
-    private lateinit var mirrorView: TextView
 
     private val projectionManager by lazy {
         getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
@@ -83,11 +81,6 @@ class MainActivity : Activity() {
         handleIntent(intent)
     }
 
-    /**
-     * The service asks for screen capture by bringing us forward with
-     * [AgentService.ACTION_REQUEST_CAPTURE]; that means the desktop wants the
-     * mirror and only the owner can release it.
-     */
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == AgentService.ACTION_REQUEST_CAPTURE) {
             Toast.makeText(this, R.string.capture_prompt_toast, Toast.LENGTH_LONG).show()
@@ -98,12 +91,8 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         Consent.dialogListener = onConsentNeeded
-        // While we are on screen the service can raise the system capture dialog
-        // directly instead of having to restart this Activity.
         AgentService.capturePrompt = { askForCapture() }
 
-        // Coming back from the accessibility screen: tell the hub the phone's
-        // capabilities changed so the desktop's device card updates.
         val ready = RemoteInputService.isReady
         if (ready != lastAccessibilityState) {
             lastAccessibilityState = ready
@@ -132,99 +121,87 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(20), dp(20), dp(20))
         }
 
-        root.addView(
-            TextView(this).apply {
-                text = getString(R.string.app_name)
-                textSize = 22f
-            },
-        )
-        root.addView(
-            TextView(this).apply {
-                text = "Consent-based remote support. The agent runs only while you keep " +
-                    "it started and always shows a notification you can see. Every desktop " +
-                    "session has to be accepted on this phone."
-                textSize = 13f
-                setPadding(0, dp(6), 0, dp(4))
-            },
-        )
+        root.addView(TextView(this).apply {
+            text = getString(R.string.app_name)
+            textSize = 24f
+            setTypeface(Typeface.DEFAULT_BOLD)
+        })
+        root.addView(TextView(this).apply {
+            text = "Control your phone from your desktop"
+            textSize = 14f
+            setPadding(0, dp(4), 0, dp(12))
+        })
 
-        root.addView(sectionLabel("Hub address (your computer)"))
+        root.addView(sectionLabel("Computer address (hub)"))
         urlField = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-            hint = "192.168.1.5:${AgentConfig.DEFAULT_PORT}"
-            setText(config.hubUrl)
+            hint = "192.168.1.5:8000"
+            setText(config.hubUrl.takeIf { it.isNotEmpty() } ?: "http://192.168.1.100:8000")
         }
         root.addView(urlField)
 
-        root.addView(sectionLabel("Device name shown on the desktop"))
-        nameField = EditText(this).apply { setText(config.deviceName) }
-        root.addView(nameField)
-
-        autoApproveBox = CheckBox(this).apply {
-            text = "Accept control requests without asking me (not recommended)"
-            isChecked = config.autoApprove
-        }
-        root.addView(autoApproveBox)
-
-        root.addView(
-            Button(this).apply {
-                text = "Save settings"
-                setOnClickListener { saveSettings() }
-            },
-        )
-
+        // Start / Stop row
         val buttonRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         startButton = Button(this).apply {
-            text = "Start agent"
+            text = "START AGENT"
+            textSize = 16f
             setOnClickListener {
-                persist()
+                config.hubUrl = urlField.text.toString()
                 sendToService(AgentService.ACTION_START)
             }
         }
         stopButton = Button(this).apply {
-            text = "Stop agent"
+            text = "STOP AGENT"
+            textSize = 16f
             setOnClickListener { sendToService(AgentService.ACTION_STOP) }
         }
         buttonRow.addView(startButton, weight())
         buttonRow.addView(stopButton, weight())
         root.addView(buttonRow)
 
+        // Pairing code (large, prominent)
+        codeView = TextView(this).apply {
+            textSize = 40f
+            gravity = Gravity.CENTER
+            setTypeface(Typeface.MONOSPACE)
+            setPadding(0, dp(12), 0, dp(12))
+        }
+        root.addView(codeView)
+
         statusView = TextView(this).apply { textSize = 13f }
         root.addView(statusView)
 
+        // Remote input note
         root.addView(sectionLabel("Remote input (tap, swipe, type)"))
         accessibilityView = TextView(this).apply { textSize = 13f }
         root.addView(accessibilityView)
-        root.addView(
-            Button(this).apply {
-                text = "Open accessibility settings"
-                setOnClickListener {
-                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                }
-            },
-        )
+        root.addView(Button(this).apply {
+            text = "Open accessibility settings"
+            setOnClickListener {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+        })
 
+        // Screen mirroring note
         root.addView(sectionLabel("Screen mirroring"))
         mirrorView = TextView(this).apply { textSize = 13f }
         root.addView(mirrorView)
-        root.addView(
-            Button(this).apply {
-                text = "Allow screen capture"
-                setOnClickListener { askForCapture() }
-            },
-        )
+        root.addView(Button(this).apply {
+            text = "Allow screen capture"
+            setOnClickListener { askForCapture() }
+        })
 
-        root.addView(sectionLabel("How to test"))
-        root.addView(
-            TextView(this).apply {
-                text = "1. Start the hub on your computer.\n" +
-                    "2. Put the computer's LAN IP / tunnel URL in the hub address above and save.\n" +
-                    "3. Start the agent — this phone is now controllable.\n" +
-                    "4. In the desktop app, connect and click this phone to take control.\n" +
-                    "5. Switch on accessibility above to allow taps, swipes and typing."
-                textSize = 13f
-            },
-        )
+        // Simple instructions
+        root.addView(TextView(this).apply {
+            text = "How to use:\n" +
+                "1. Start the hub on your computer (start_server.py).\n" +
+                "2. Enter your computer's address above and tap START AGENT.\n" +
+                "3. Note the 6-digit pairing code shown below.\n" +
+                "4. Open the desktop app, connect, pick this phone, enter the code.\n" +
+                "5. Tap Accept on this phone when asked — then you're in control."
+            textSize = 12f
+            setPadding(0, dp(12), 0, dp(4))
+        })
 
         return ScrollView(this).apply { addView(root) }
     }
@@ -234,35 +211,35 @@ class MainActivity : Activity() {
         startButton.isEnabled = !running
         stopButton.isEnabled = running
 
+        // Show pairing code prominently
+        val code = AgentStatus.pairingCode
+        codeView.text = if (running && code.isNotEmpty()) code else "—"
+
         val state = when {
-            !running -> "stopped"
-            AgentStatus.paired -> "paired — a desktop is in control"
-            AgentStatus.connected -> "online, waiting for a desktop"
-            else -> "connecting…"
+            !running -> "Stopped"
+            AgentStatus.paired -> "Paired — desktop is in control"
+            AgentStatus.connected -> "Online, waiting for desktop"
+            else -> "Connecting…"
         }
 
         statusView.text = buildString {
-            append("Agent: ").append(state).append('\n')
+            append("Status: ").append(state).append('\n')
             append("Hub: ").append(AgentStatus.hub.ifEmpty { config.normalizedHubUrl() }).append('\n')
-            append("Device id: ").append(config.deviceId).append('\n')
-            append("Last event: ").append(AgentStatus.lastMessage)
+            append("Last: ").append(AgentStatus.lastMessage)
         }
 
         val ready = RemoteInputService.isReady
         accessibilityView.text = if (ready) {
-            "Enabled — an accepted desktop can tap, swipe and type."
+            "Remote input: ON (taps, swipes, typing work)"
         } else {
-            "Off — taps, swipes and typing are refused until you switch it on."
+            "Remote input: OFF (enable accessibility in settings above)"
         }
         accessibilityView.setTextColor(if (ready) COLOR_OK else COLOR_BAD)
 
         mirrorView.text = when {
-            AgentStatus.mirroring -> "ON — a paired desktop is seeing this screen right now."
-            AgentStatus.captureGranted ->
-                "Allowed, not yet streaming. The mirror starts when a desktop asks."
-            else ->
-                "Off — no desktop can see this screen. Tap below (or let a desktop ask) " +
-                    "to approve capture; Android will confirm with you first."
+            AgentStatus.mirroring -> "Screen mirroring: ON (desktop sees your screen)"
+            AgentStatus.captureGranted -> "Screen mirroring: Allowed, waiting for desktop"
+            else -> "Screen mirroring: OFF (desktop can ask to start it)"
         }
         mirrorView.setTextColor(if (AgentStatus.mirroring) COLOR_OK else COLOR_BAD)
     }
@@ -285,14 +262,6 @@ class MainActivity : Activity() {
         sendToService(if (accepted) Consent.ACTION_ACCEPT else Consent.ACTION_DECLINE)
     }
 
-    /**
-     * Ask Android for permission to read the screen.
-     *
-     * There is deliberately no way around this dialog: it is the system's, not
-     * ours, so nothing can capture the display without the owner tapping "Start
-     * now". The answer comes back in [onActivityResult] and is handed straight
-     * to the service, which is the only thing that owns the session.
-     */
     private fun askForCapture() {
         if (isFinishing || isDestroyed) return
         runCatching { startActivityForResult(projectionManager.createScreenCaptureIntent(), RC_CAPTURE) }
@@ -305,8 +274,6 @@ class MainActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != RC_CAPTURE) return
-        // Nothing to hand the answer to if the agent is not up: a stopped agent
-        // must not be revived by a capture reply.
         if (!AgentStatus.running) return
         val intent = Intent(this, AgentService::class.java).apply {
             action = if (resultCode == RESULT_OK && data != null) {
@@ -318,24 +285,6 @@ class MainActivity : Activity() {
             putExtra(AgentService.EXTRA_RESULT_DATA, data)
         }
         startService(intent)
-    }
-
-    // --------------------------------------------------------------- plumbing
-
-    private fun persist() {
-        config.hubUrl = urlField.text.toString()
-        config.deviceName = nameField.text.toString()
-        config.autoApprove = autoApproveBox.isChecked
-    }
-
-    private fun saveSettings() {
-        persist()
-        Toast.makeText(
-            this,
-            "Saved. The hub will be contacted at ${config.normalizedHubUrl()}",
-            Toast.LENGTH_LONG,
-        ).show()
-        renderStatus()
     }
 
     private fun sendToService(action: String) {

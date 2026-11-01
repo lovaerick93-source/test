@@ -93,6 +93,21 @@ class ControllerFrame : JFrame("Remote Control — Desktop"), HubEvents {
         minimumSize = Dimension(1100, 700)
         pack()
         setLocationRelativeTo(null)
+
+        // Auto-connect to the local hub on startup — no manual step needed.
+        java.awt.EventQueue.invokeLater {
+            javax.swing.Timer(800, null).apply {
+                addActionListener { _ ->
+                    stop()
+                    hub.connect("ws://127.0.0.1:8000/ws")
+                    hubUrlField.text = "ws://127.0.0.1:8000/ws"
+                    connectButton.isEnabled = false
+                    statusLabel.text = "Connecting to local hub…"
+                }
+                setRepeats(false)
+                start()
+            }
+        }
     }
 
     // -------------------------------------------------------------- top bar
@@ -310,6 +325,7 @@ class ControllerFrame : JFrame("Remote Control — Desktop"), HubEvents {
     override fun onConnectionStateChanged(connected: Boolean) {
         SwingUtilities.invokeLater {
             connectButton.text = if (connected) "Disconnect" else "Connect"
+            connectButton.isEnabled = !connected
         }
     }
 
